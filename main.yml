@@ -52,3 +52,25 @@
             loop_var: outer_item
           with_fileglob: "{{ post_provision_tasks|default(omit) }}"
       tags: ['post']
+    # MySQL Stuff
+    - name: Make sure pymysql is installed
+      become: true
+      pip:
+        name: pymysql
+        state: present
+    # https://stackoverflow.com/questions/44824650/starting-homebrew-service-in-ansible-not-working
+    - name: Start MySQL Service
+      command: /opt/homebrew/bin/brew services start mysql
+      when: ansible_os_family == "Darwin"
+    - name: Setup root MySQL user
+      become: true
+      mysql_user:
+        login_user: root
+        login_password: root
+        name: root
+        password: root
+        check_implicit_admin: true
+    # MongoDB Stuff
+    - name: Start MongoDB Service
+      command: /opt/homebrew/bin/brew services start mongodb-community
+      when: ansible_os_family == "Darwin"

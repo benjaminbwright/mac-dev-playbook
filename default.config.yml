@@ -6,16 +6,33 @@ configure_terminal: true
 configure_osx: true
 
 # Set to 'true' to configure the Dock via dockutil.
-configure_dock: false
-dockitems_remove: []
-# - Launchpad
-# - TV
-# - Podcasts
-# - 'App Store'
-dockitems_persist: []
-# - name: "Sublime Text"
-#   path: "/Applications/Sublime Text.app/"
-#   pos: 5
+configure_dock: true
+dockitems_remove:
+  - Launchpad
+  - TV
+  - Podcasts
+  - 'App Store'
+  - News
+  - Mail
+  - Contacts
+  - Maps
+  - Music
+  - FaceTime
+  - Messages
+  - Photos
+dockitems_persist:
+  - name: "Terminal"
+    path: "/Applications/Terminal.app/"
+    pos: 1
+  - name: "VS Code"
+    path: "/Applications/Visual Studio Code.app/"
+    pos: 2
+  - name: "Obsidian"
+    path: "/Applications/Obsidian.app/"
+    pos: 3
+  - name: "Chrome"
+    path: "/Applications/Google Chrome.app/"
+    pos: 4
 
 configure_sudoers: false
 sudoers_custom_config: ''
@@ -49,11 +66,14 @@ homebrew_installed_packages:
   - iperf
   - libevent
   - sqlite
+  - mysql
   - mcrypt
+  - mongodb-community
   - nmap
   - node
   - nvm
   - php
+  - python
   - ssh-copy-id
   - cowsay
   - readline
@@ -62,10 +82,15 @@ homebrew_installed_packages:
   - wget
   - wrk
   - zsh-history-substring-search
+  - cocoapods
+  - pandoc
+  - pnpm
+  - mysql-client
 
 homebrew_taps:
   - homebrew/core
   - homebrew/cask
+  - mongodb/brew
 
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
@@ -78,8 +103,14 @@ homebrew_cask_apps:
   - licecap
   - sequel-ace
   - slack
-  - sublime-text
   - transmit
+  - visual-studio-code
+  - obsidian
+  - zoom
+  - mysql-connector-python
+
+homebrew_cask_uninstalled_apps:
+  - sublime-text
 
 # See `geerlingguy.mas` role documentation for usage instructions.
 mas_installed_apps: []
@@ -128,3 +159,11 @@ sublime_package_control:
 
 # Glob pattern to ansible task files to run after all other tasks are finished.
 post_provision_tasks: []
+
+# Mysql role vars
+mysql_packages:
+  - mysql
+  - mysql-server
+
+# python
+ansible_python_interpreter: /opt/homebrew/bin/python3
