@@ -74,3 +74,8 @@
     - name: Start MongoDB Service
       command: /opt/homebrew/bin/brew services start mongodb-community
       when: ansible_os_family == "Darwin"
+    - name: Initialize Rust
+      command: rustup-init
+      args:
+        stdin: "1"
+      when: ansible_os_family == "Darwin"
