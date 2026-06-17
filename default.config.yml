@@ -126,6 +126,9 @@ homebrew_installed_packages:
   - pi-coding-agent
   # Databases
   - postgresql@14
+  # File sync (continuous sync to the local Syncthing server; runs as a brew
+  # service, configured via the web UI at http://localhost:8384)
+  - syncthing
   # Media / misc
   - ffmpeg
   - weasyprint

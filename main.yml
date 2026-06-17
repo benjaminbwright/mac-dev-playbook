@@ -126,6 +126,15 @@
     - name: Start MongoDB Service
       command: /opt/homebrew/bin/brew services start mongodb-community
       when: ansible_os_family == "Darwin"
+    # Syncthing — run as a login service so it syncs continuously in the
+    # background. Pair it with your local Syncthing server via the web UI at
+    # http://localhost:8384 (add the server's Device ID, then share folders).
+    - name: Start Syncthing service
+      command: /opt/homebrew/bin/brew services start syncthing
+      register: syncthing_service
+      changed_when: "'already started' not in (syncthing_service.stdout | default(''))"
+      when: ansible_os_family == "Darwin"
+      tags: ['syncthing']
     - name: Initialize Rust
       command: rustup-init
       args:

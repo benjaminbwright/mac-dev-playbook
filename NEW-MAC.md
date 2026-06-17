@@ -189,6 +189,20 @@ then `dotfiles commit -am "..."` and `dotfiles push`; on another machine
 `dotfiles-pull`. Commit before re-running `--tags dotfiles` (the symlinked files
 always show as local edits in the repo).
 
+## Document sync (Syncthing)
+
+The playbook installs the `syncthing` formula and starts it as a login service
+(`brew services`), so the daemon runs continuously in the background. The playbook
+**can't** pair it to your server (device IDs/folders are interactive) — do that once
+in the web UI:
+
+```bash
+open http://localhost:8384
+```
+Add your local Syncthing server's **Device ID**, accept the pairing on the server,
+then share/accept the folders you want synced into `~`. Run just this step with
+`--tags syncthing`.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
