@@ -5,3 +5,9 @@ roles:
 
 collections:
   - name: geerlingguy.mac
+  # Required by the mysql_user task in main.yml (mysql_user lives in this
+  # collection, not in ansible-core). Without it, provisioning fails on a
+  # fresh machine where the collection isn't already installed globally.
+  - name: community.mysql
+  # Used by the composer/npm/gem tasks in tasks/extra-packages.yml.
+  - name: community.general
