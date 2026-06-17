@@ -27,6 +27,24 @@
         - "{{ playbook_dir }}/config.yml"
       tags: ['always']
 
+    # The dock role installs dockutil via the community.general.homebrew module,
+    # which fails on current Homebrew (brew install exits non-zero even on
+    # success). Install it here tolerantly BEFORE the dock role, and set
+    # dockutil_install: false on that role. Success/failure is keyed on brew's
+    # 'Error:' string, not its exit code (which is unreliable on this Homebrew).
+    - name: Ensure dockutil is installed (tolerant; dock role's installer is disabled).
+      ansible.builtin.command:
+        cmd: "/opt/homebrew/bin/brew install dockutil"
+      register: dockutil_result
+      changed_when: >-
+        'already installed' not in (dockutil_result.stdout | default('')) and
+        'already installed' not in (dockutil_result.stderr | default(''))
+      failed_when: >-
+        'Error:' in (dockutil_result.stdout | default('')) or
+        'Error:' in (dockutil_result.stderr | default(''))
+      when: configure_dock | default(false)
+      tags: ['dock', 'homebrew']
+
   roles:
     - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
@@ -48,6 +66,9 @@
     #   when: mas_installed_apps or mas_installed_app_ids
     #   tags: ['mas']
     - role: geerlingguy.mac.dock
+      # dockutil is installed in pre_tasks (the role's own installer uses the
+      # homebrew module, which fails on current Homebrew).
+      dockutil_install: false
       when: configure_dock
       tags: ['dock']
 
@@ -57,18 +78,19 @@
     # already-installed packages and then treats brew's "already installed"
     # notice as a failure, so re-runs fail noisily. `brew install` is itself
     # idempotent, so we just run it and treat "already installed" as unchanged.
+    # `brew install` is idempotent, but on current Homebrew it exits NON-ZERO even
+    # on success (and on "already installed"), so we can't trust rc. Key failure on
+    # brew's 'Error:' prefix instead, and treat "already installed" as unchanged.
     - name: Install configured Homebrew formulae (idempotent, tolerant).
       ansible.builtin.command:
         cmd: "/opt/homebrew/bin/brew install {{ item.name | default(item) }}"
       register: brew_formula
-      changed_when:
-        - brew_formula.rc == 0
-        - "'already installed' not in (brew_formula.stderr | default(''))"
-        - "'already installed' not in (brew_formula.stdout | default(''))"
-      failed_when:
-        - brew_formula.rc != 0
-        - "'already installed' not in (brew_formula.stderr | default(''))"
-        - "'already installed' not in (brew_formula.stdout | default(''))"
+      changed_when: >-
+        'already installed' not in (brew_formula.stdout | default('')) and
+        'already installed' not in (brew_formula.stderr | default(''))
+      failed_when: >-
+        'Error:' in (brew_formula.stdout | default('')) or
+        'Error:' in (brew_formula.stderr | default(''))
       loop: "{{ homebrew_installed_packages }}"
       loop_control:
         label: "{{ item.name | default(item) }}"
