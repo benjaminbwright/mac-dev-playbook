@@ -167,8 +167,12 @@
       changed_when: "'already started' not in (syncthing_service.stdout | default(''))"
       when: ansible_os_family == "Darwin"
       tags: ['syncthing']
-    - name: Initialize Rust
-      command: rustup-init
-      args:
-        stdin: "1"
+    # The rustup formula is keg-only on current Homebrew, so `rustup-init` isn't on
+    # PATH — call it by its keg path. `creates` makes this idempotent (skips once
+    # the toolchain exists); --no-modify-path leaves shell profiles to our dotfiles.
+    - name: Initialize Rust toolchain.
+      ansible.builtin.command:
+        cmd: "/opt/homebrew/opt/rustup/bin/rustup-init -y --no-modify-path"
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/rustc"
       when: ansible_os_family == "Darwin"
+      ignore_errors: true
