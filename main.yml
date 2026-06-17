@@ -1,6 +1,14 @@
 ---
 - hosts: all
 
+  # Ensure Homebrew's bin dir is on PATH for every task. Apple Silicon installs
+  # brew to /opt/homebrew/bin, which is NOT on Ansible's default task PATH
+  # (/usr/bin:/bin:...). Without this, PATH-based module lookups fail — e.g. the
+  # community.general.mas module reports "Required `mas` tool is not installed"
+  # even though `mas` is installed. /usr/local/bin covers Intel Macs.
+  environment:
+    PATH: "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:{{ ansible_env.PATH }}"
+
   vars_files:
     - default.config.yml
 
