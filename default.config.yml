@@ -292,4 +292,9 @@ mysql_packages:
   - mysql-server
 
 # python
-ansible_python_interpreter: /opt/homebrew/bin/python3
+# Do NOT hardcode /opt/homebrew/bin/python3 here: on a fresh Mac that path does
+# not exist until the homebrew role runs, but fact-gathering happens first, so
+# the playbook fails at "Gathering Facts" with "no such file or directory".
+# 'auto_silent' lets Ansible discover a Python that already exists (and silences
+# the discovery warning). Override in config.yml if you need a specific one.
+ansible_python_interpreter: auto_silent

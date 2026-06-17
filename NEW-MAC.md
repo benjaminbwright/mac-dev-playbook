@@ -88,6 +88,16 @@ in [default.config.yml](default.config.yml):
 - **GoodMorning** / **Victory Shield** — source TBD; copy the `.app` from the old Mac's
   `/Applications` in the meantime.
 
+## Troubleshooting
+
+**"Gathering Facts" fails with `/opt/homebrew/bin/python3: no such file or directory`**
+This happens when `ansible_python_interpreter` is pinned to a Homebrew Python that
+doesn't exist yet (Homebrew is installed *during* the playbook, but facts are
+gathered first). `default.config.yml` now uses `ansible_python_interpreter: auto_silent`
+so Ansible discovers an existing Python — pull the latest of this repo if you still
+see the hardcoded path. As a one-off override you can also pass:
+`ansible-playbook main.yml --ask-become-pass -e ansible_python_interpreter=auto_silent`
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
