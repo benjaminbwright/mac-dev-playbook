@@ -158,7 +158,11 @@ homebrew_cask_apps:
   - visual-studio-code
   - obsidian
   - zoom
-  - mysql-connector-python
+  # NOTE: the 'mysql-connector-python' cask was removed from Homebrew (deprecated
+  # ~2023), so `brew install --cask mysql-connector-python` fails with "No Cask
+  # with this name exists". It's a Python library — install it per-project via
+  # poetry/pip in a virtualenv (e.g. `pip install mysql-connector-python`), or add
+  # it to pip_packages if you really want it global.
   - fantastical
   - freecad
   - balenaetcher
