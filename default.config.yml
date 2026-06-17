@@ -11,7 +11,7 @@ dockitems_remove:
   - Launchpad
   - TV
   - Podcasts
-  - 'App Store'
+  - "App Store"
   - News
   - Mail
   - Contacts
@@ -35,7 +35,7 @@ dockitems_persist:
     pos: 4
 
 configure_sudoers: false
-sudoers_custom_config: ''
+sudoers_custom_config: ""
 # Example:
 # sudoers_custom_config: |
 #   # Allow users in admin group to use sudo with no password.
@@ -73,6 +73,7 @@ homebrew_installed_packages:
   - node
   - nvm
   - php
+  - poetry
   - python
   - ssh-copy-id
   - cowsay
@@ -87,20 +88,68 @@ homebrew_installed_packages:
   - pandoc
   - pnpm
   - mysql-client
+  # --- Added to mirror current machine (2026-06-16) ---
+  # Languages / runtimes / version management
+  - pyenv
+  - virtualenv
+  - python@3.10
+  - python@3.11
+  - yarn
+  - gcc
+  # Cloud / infra / kubernetes
+  - hashicorp/tap/terraform
+  - helm
+  - minikube
+  - kubeconform
+  - golang-migrate
+  - doctl
+  - railway
+  - docker-compose
+  # Dev tooling
+  - bufbuild/buf/buf
+  - xcodegen
+  - direnv
+  - fswatch
+  - rsync
+  - graphviz
+  - black
+  - ruff
+  - bats-core
+  - pi-coding-agent
+  # Databases
+  - postgresql@14
+  # Media / misc
+  - ffmpeg
+  - weasyprint
+  - cmatrix
+  # Mac App Store CLI (used by mas_installed_apps below)
+  - mas
+  # NOTE: 'ansible' is also installed via Homebrew on the current machine.
+  # The playbook itself installs Ansible via pip (see main.yml), so it is left
+  # commented to avoid two competing Ansible installs. Uncomment if you prefer brew.
+  # - ansible
 
 homebrew_taps:
   - homebrew/core
   - homebrew/cask
   - mongodb/brew
+  - hashicorp/tap
+  - bufbuild/buf
+  # Present on the current machine but not currently backing a declared package:
+  # - heroku/brew
+  # - hpedrorodrigues/tools
 
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   - chromedriver
-  - docker
+  # Container runtime: docker CLI + Docker Desktop (orbstack intentionally omitted).
+  # 'docker' cask was renamed upstream to 'docker-desktop'.
+  - docker-desktop
   - dropbox
   - firefox
   - google-chrome
   - handbrake
+  - handbrake-app
   - licecap
   - sequel-ace
   - slack
@@ -109,12 +158,88 @@ homebrew_cask_apps:
   - obsidian
   - zoom
   - mysql-connector-python
+  - fantastical
+  - freecad
+  - balenaetcher
+  # --- Added to mirror current machine (2026-06-16) ---
+  # Editors / AI / terminal
+  - cursor
+  - claude
+  - claude-code
+  - warp
+  - wispr-flow
+  - chatgpt
+  # Dev / DB / API tooling
+  - dockutil          # required by the dock-configuration role
+  - insomnia
+  - pgadmin4
+  # Productivity / comms
+  - figma
+  - asana
+  - microsoft-teams
+  - microsoft-edge
+  - google-drive
+  - tailscale
+  - logseq
+  # Design / CAD / print / media
+  - inkscape
+  - inkstitch
+  - scribus
+  - scrivener
+  - openoffice
+  - topaz-gigapixel-ai
+  - vassal
+
+# ---------------------------------------------------------------------------
+# MANUAL INSTALLS — NOT managed by this playbook.
+# These apps are not available via Homebrew cask or the Mac App Store (or are
+# managed by their own installer). After running the playbook on a new Mac,
+# install these by hand so nothing is forgotten. Captured 2026-06-16.
+#
+# Adobe Creative Cloud (install the CC desktop app first, then each app):
+#   - Adobe Creative Cloud .... https://creativecloud.adobe.com/apps/download/creative-cloud
+#   - Acrobat (DC)
+#   - Audition
+#   - Illustrator
+#   - Photoshop
+#   - Premiere Pro
+#   - Media Encoder
+#
+# Other direct-download / unverified-source apps:
+#   - Codex ................... https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg
+#   - Join .................... https://joaoapps.com/join/
+#   - GoodMorning ............. (verify source / vendor)
+#   - BookWright .............. Blurb book-design tool: https://www.blurb.com/bookwright
+#   - Victory Shield .......... (verify source / vendor)
+# ---------------------------------------------------------------------------
 
 homebrew_cask_uninstalled_apps:
   - sublime-text
 
 # See `geerlingguy.mas` role documentation for usage instructions.
-mas_installed_apps: []
+# Captured from `mas list` on the current machine (2026-06-16).
+# You must be signed into the App Store on the new Mac for these to install.
+mas_installed_apps:
+  - id: 497799835
+    name: "Xcode"
+  - id: 634148309
+    name: "Logic Pro"
+  - id: 634159523
+    name: "MainStage"
+  - id: 682658836
+    name: "GarageBand"
+  - id: 899247664
+    name: "TestFlight"
+  - id: 585829637
+    name: "Todoist"
+  - id: 1298450641
+    name: "monday.com"
+  - id: 1667260533
+    name: "Sketch"
+  - id: 6469834197
+    name: "Roam"
+  - id: 6714467650
+    name: "Perplexity"
 mas_email: ""
 mas_password: ""
 
@@ -142,7 +267,7 @@ pip_packages: []
 
 # Set to 'true' to configure Sublime Text.
 configure_sublime: false
-sublime_base_path: '~/Library/Application Support/Sublime Text'
+sublime_base_path: "~/Library/Application Support/Sublime Text"
 sublime_config_path: "Packages/User"
 sublime_package_control:
   - "DocBlockr"
