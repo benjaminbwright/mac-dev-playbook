@@ -30,6 +30,11 @@
   roles:
     - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
+      # Skip the role's per-package formula loop: its homebrew module mis-detects
+      # already-installed packages on current Homebrew and then fails on brew's
+      # "already installed" notice. We install formulae ourselves in tasks: below
+      # (tolerant + idempotent). The role still installs taps and casks.
+      homebrew_installed_packages: []
       tags: ['homebrew']
     - role: geerlingguy.dotfiles
       when: configure_dotfiles
@@ -47,6 +52,28 @@
       tags: ['dock']
 
   tasks:
+    # Install Homebrew formulae ourselves rather than via the homebrew role's
+    # per-package module loop. On current Homebrew that module mis-detects
+    # already-installed packages and then treats brew's "already installed"
+    # notice as a failure, so re-runs fail noisily. `brew install` is itself
+    # idempotent, so we just run it and treat "already installed" as unchanged.
+    - name: Install configured Homebrew formulae (idempotent, tolerant).
+      ansible.builtin.command:
+        cmd: "/opt/homebrew/bin/brew install {{ item.name | default(item) }}"
+      register: brew_formula
+      changed_when:
+        - brew_formula.rc == 0
+        - "'already installed' not in (brew_formula.stderr | default(''))"
+        - "'already installed' not in (brew_formula.stdout | default(''))"
+      failed_when:
+        - brew_formula.rc != 0
+        - "'already installed' not in (brew_formula.stderr | default(''))"
+        - "'already installed' not in (brew_formula.stdout | default(''))"
+      loop: "{{ homebrew_installed_packages }}"
+      loop_control:
+        label: "{{ item.name | default(item) }}"
+      tags: ['homebrew']
+
     - import_tasks: tasks/sudoers.yml
       when: configure_sudoers
       tags: ['sudoers']

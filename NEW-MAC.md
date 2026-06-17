@@ -150,6 +150,15 @@ for the taps we declare. Pull the latest if you still see trust warnings. (If a
 future Homebrew removes that flag, run `brew trust hashicorp/tap bufbuild/buf
 mongodb/brew github/gh` once instead.)
 
+**Homebrew formulae all report "failed: … already installed and up-to-date" on a re-run**
+The `community.general.homebrew` module's idempotency check is unreliable against
+current Homebrew: it doesn't recognize already-installed packages, runs `brew
+install` anyway, then treats brew's "already installed" notice as a failure.
+`main.yml` therefore skips the role's formula loop (`homebrew_installed_packages: []`
+on the role) and installs formulae in its own tolerant task that treats "already
+installed" as unchanged. The role still handles taps and casks. Nothing was being
+reinstalled or damaged — the packages were fine; only the status reporting was wrong.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
