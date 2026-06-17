@@ -130,8 +130,9 @@ homebrew_installed_packages:
   # - ansible
 
 homebrew_taps:
-  - homebrew/core
-  - homebrew/cask
+  # homebrew/core and homebrew/cask are built into Homebrew now — tapping them
+  # explicitly errors ("Tapping homebrew/core is no longer typically necessary"),
+  # so they are intentionally omitted.
   - mongodb/brew
   - hashicorp/tap
   - bufbuild/buf
