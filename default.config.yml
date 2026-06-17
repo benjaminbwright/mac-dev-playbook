@@ -41,15 +41,22 @@ sudoers_custom_config: ""
 #   # Allow users in admin group to use sudo with no password.
 #   %admin ALL=(ALL) NOPASSWD: ALL
 
-dotfiles_repo: https://github.com/geerlingguy/dotfiles.git
+dotfiles_repo: git@github.com:benjaminbwright/dotfiles.git
+dotfiles_repo_version: main
 dotfiles_repo_accept_hostkey: true
 dotfiles_repo_local_destination: ~/Development/GitHub/dotfiles
+# NOTE: this is a PRIVATE repo cloned over SSH, so the new Mac must have GitHub
+# SSH access before the dotfiles step runs (see NEW-MAC.md). Secrets are NOT in
+# the repo — machine-local values live in ~/.zshrc.local (see .zshrc.local.example).
 dotfiles_files:
   - .zshrc
+  - .aliases
+  - .gitconfig
   - .gitignore
   - .inputrc
-  - .osx
   - .vimrc
+  - .osx
+  - .zshenv
 
 homebrew_installed_packages:
   # - ansible # Installed via Pip.

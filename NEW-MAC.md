@@ -70,6 +70,11 @@ cd mac-dev-playbook
 No SSH keys on the new machine yet? Use HTTPS:
 `git clone https://github.com/benjaminbwright/mac-dev-playbook.git`
 
+> **Set up GitHub SSH access now** if you haven't. The dotfiles step clones a
+> **private** repo (`benjaminbwright/dotfiles`) over SSH, so it fails without it.
+> Quickest path: `gh auth login` (then `gh auth setup-git`), or add an SSH key to
+> GitHub. Verify with `ssh -T git@github.com`.
+
 ### 7. Install required roles/collections
 ```bash
 ansible-galaxy install -r requirements.yml
@@ -158,6 +163,31 @@ install` anyway, then treats brew's "already installed" notice as a failure.
 on the role) and installs formulae in its own tolerant task that treats "already
 installed" as unchanged. The role still handles taps and casks. Nothing was being
 reinstalled or damaged — the packages were fine; only the status reporting was wrong.
+
+## Dotfiles & shell config
+
+The playbook clones your private [dotfiles repo](https://github.com/benjaminbwright/dotfiles)
+to `~/Development/GitHub/dotfiles` and symlinks the tracked files into `~`
+(`.zshrc`, `.aliases`, `.gitconfig`, `.gitignore`, `.inputrc`, `.vimrc`, `.osx`,
+`.zshenv`). Run just that part with `--tags dotfiles`.
+
+**Secrets are not in the repo.** Machine-local / sensitive shell config lives in
+`~/.zshrc.local` (gitignored, sourced at the end of `.zshrc`). On a new Mac it
+won't exist yet, so after the dotfiles step:
+
+```bash
+# Option A — copy from your old Mac (both alive during migration):
+scp old-mac:~/.zshrc.local ~/.zshrc.local
+
+# Option B — start from the template and fill in values:
+cp ~/Development/GitHub/dotfiles/.zshrc.local.example ~/.zshrc.local
+$EDITOR ~/.zshrc.local
+```
+
+To change dotfiles later: edit the file in `~` (it's a symlink into the repo),
+then `dotfiles commit -am "..."` and `dotfiles push`; on another machine
+`dotfiles-pull`. Commit before re-running `--tags dotfiles` (the symlinked files
+always show as local edits in the repo).
 
 ## Good to know
 
