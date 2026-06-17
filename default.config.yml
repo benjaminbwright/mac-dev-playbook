@@ -67,7 +67,8 @@ homebrew_installed_packages:
   - libevent
   - sqlite
   - mysql
-  - mcrypt
+  # mcrypt removed: dropped from Homebrew (legacy lib; PHP removed mcrypt in 7.2),
+  # so a fresh Mac errors with "No available formula with the name mcrypt".
   - mongodb-community
   - nmap
   - node

@@ -141,6 +141,15 @@ you don't own can't be installed by any tool — buy them once in the App Store.
 ones need attention. (Note: `mas account`/`mas signin` were removed in mas 2.0+, so
 sign-in is detected from the App Store app; just make sure you're signed in there.)
 
+**Homebrew installs fail in bulk with "The following taps are not trusted"**
+Newer Homebrew won't load formulae from third-party taps unless trusted, and exits
+non-zero on every `brew install` while any untrusted tap is present — so the Ansible
+homebrew module marks almost everything failed (and `mongodb-community` hard-fails).
+`main.yml` sets `HOMEBREW_NO_REQUIRE_TAP_TRUST=1` for the play to disable this gate
+for the taps we declare. Pull the latest if you still see trust warnings. (If a
+future Homebrew removes that flag, run `brew trust hashicorp/tap bufbuild/buf
+mongodb/brew github/gh` once instead.)
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password

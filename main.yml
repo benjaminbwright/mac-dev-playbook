@@ -8,6 +8,14 @@
   # even though `mas` is installed. /usr/local/bin covers Intel Macs.
   environment:
     PATH: "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:{{ ansible_env.PATH }}"
+    # Newer Homebrew requires third-party taps to be "trusted" or it refuses to
+    # load their formulae AND exits non-zero on every `brew install` — which makes
+    # the Ansible homebrew module mark nearly everything as failed, and hard-fails
+    # tap-sourced formulae like mongodb-community. We declare these taps ourselves
+    # (hashicorp/tap, bufbuild/buf, mongodb/brew, github/gh), so disable the trust
+    # gate. This is Homebrew's documented escape hatch; if a future Homebrew removes
+    # it, switch to `brew trust <tap>` for each tap instead.
+    HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
 
   vars_files:
     - default.config.yml
