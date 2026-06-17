@@ -19,7 +19,23 @@ xcode-select --install
 ```
 Wait for it to finish before continuing.
 
-### 4. Install Ansible
+### 4. Install Homebrew
+The `geerlingguy.mac.homebrew` role *can* bootstrap Homebrew itself, but its
+git-clone method is fragile and fails with *"source file does not exist
+(/opt/homebrew/Homebrew/bin/brew)"* when it doesn't produce a working `brew`.
+Install Homebrew the official way first; the role then detects it and skips the
+brittle bootstrap.
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Put brew on PATH (Apple Silicon):
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+brew --version   # confirm
+```
+
+### 5. Install Ansible
 ```bash
 pip3 install --upgrade pip
 pip3 install ansible
@@ -46,7 +62,7 @@ ansible --version
 > (`brew install ansible`), its commands land in `/opt/homebrew/bin`, which is
 > already on PATH — no extra step needed.
 
-### 5. Clone this repo
+### 6. Clone this repo
 ```bash
 git clone git@github.com:benjaminbwright/mac-dev-playbook.git
 cd mac-dev-playbook
@@ -54,24 +70,25 @@ cd mac-dev-playbook
 No SSH keys on the new machine yet? Use HTTPS:
 `git clone https://github.com/benjaminbwright/mac-dev-playbook.git`
 
-### 6. Install required roles/collections
+### 7. Install required roles/collections
 ```bash
 ansible-galaxy install -r requirements.yml
 ```
 
-### 7. Sanity-check first (recommended)
+### 8. Sanity-check first (recommended)
 ```bash
 ansible-playbook main.yml --syntax-check
 ansible-playbook main.yml --check --ask-become-pass --tags homebrew,mas
 ```
 `--check` is a dry run — shows what would change without touching anything.
 
-### 8. Run it
+### 9. Run it
 ```bash
 ansible-playbook main.yml --ask-become-pass
 ```
-Enter your macOS password at the **BECOME** prompt. Homebrew installs automatically
-on first run. Run subsets with tags, e.g.:
+Enter your macOS password at the **BECOME** prompt. With Homebrew already installed
+(step 4), the role skips its bootstrap and goes straight to installing packages.
+Run subsets with tags, e.g.:
 ```bash
 ansible-playbook main.yml -K --tags "homebrew,mas"
 ```
@@ -97,6 +114,18 @@ gathered first). `default.config.yml` now uses `ansible_python_interpreter: auto
 so Ansible discovers an existing Python — pull the latest of this repo if you still
 see the hardcoded path. As a one-off override you can also pass:
 `ansible-playbook main.yml --ask-become-pass -e ansible_python_interpreter=auto_silent`
+
+**`Symlink brew ...` fails: "source file does not exist (/opt/homebrew/Homebrew/bin/brew)"**
+Homebrew isn't actually installed — the role's git-clone bootstrap didn't produce a
+working `brew`. Recover by installing Homebrew officially, then re-running:
+```bash
+sudo rm -rf /opt/homebrew                                   # clear the partial bootstrap
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+eval "$(/opt/homebrew/bin/brew shellenv)"
+brew --version
+ansible-playbook main.yml --ask-become-pass                 # role now skips the bootstrap
+```
+This is exactly why step 4 installs Homebrew up front.
 
 ## Good to know
 
