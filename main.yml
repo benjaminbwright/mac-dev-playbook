@@ -26,11 +26,11 @@
     - role: geerlingguy.dotfiles
       when: configure_dotfiles
       tags: ['dotfiles']
-    # NOTE: geerlingguy.mac.mas (5.0.0) installs App Store apps with the
-    # community.general.mas module run as root (become: true). mas operates on the
-    # signed-in *user's* App Store session, so running it as root can't see your
-    # Apple ID and fails. We install MAS apps ourselves, as the current user, in
-    # tasks/mas.yml below. Re-enable this role only if that limitation is fixed.
+    # NOTE: geerlingguy.mac.mas (5.0.0) is disabled. mas 7.x REQUIRES root to
+    # install apps, but under sudo /opt/homebrew/bin leaves PATH, so the role's
+    # mas module can't find the `mas` binary ("Required `mas` tool is not
+    # installed"). We install MAS apps ourselves in tasks/mas.yml using become +
+    # an absolute path to mas, which sidesteps that. Re-enable only if fixed.
     # - role: geerlingguy.mac.mas
     #   when: mas_installed_apps or mas_installed_app_ids
     #   tags: ['mas']
