@@ -175,7 +175,9 @@ homebrew_cask_apps:
   - wispr-flow
   - chatgpt
   # Dev / DB / API tooling
-  - dockutil          # required by the dock-configuration role
+  # NOTE: dockutil is NOT a cask (it's a formula) and the geerlingguy.mac.dock
+  # role already installs it via Homebrew when dockutil_install is true (default).
+  # Listing it as a cask fails with "No Cask with this name exists" — removed.
   - insomnia
   - pgadmin4
   # Productivity / comms
