@@ -20,19 +20,49 @@ dockitems_remove:
   - FaceTime
   - Messages
   - Photos
+  - Safari
+# Captured from the current Mac's Dock (in order). Note: the dock role only adds
+# and positions these; the Downloads stack on the right is a default and stays.
 dockitems_persist:
   - name: "Terminal"
-    path: "/Applications/Terminal.app/"
+    path: "/System/Applications/Utilities/Terminal.app/"
     pos: 1
-  - name: "VS Code"
+  - name: "Visual Studio Code"
     path: "/Applications/Visual Studio Code.app/"
     pos: 2
+  - name: "Cursor"
+    path: "/Applications/Cursor.app/"
+    pos: 3
   - name: "Obsidian"
     path: "/Applications/Obsidian.app/"
-    pos: 3
-  - name: "Chrome"
-    path: "/Applications/Google Chrome.app/"
     pos: 4
+  - name: "Google Chrome"
+    path: "/Applications/Google Chrome.app/"
+    pos: 5
+  - name: "Microsoft Edge"
+    path: "/Applications/Microsoft Edge.app/"
+    pos: 6
+  - name: "Calendar"
+    path: "/System/Applications/Calendar.app/"
+    pos: 7
+  - name: "Fantastical"
+    path: "/Applications/Fantastical.app/"
+    pos: 8
+  - name: "Reminders"
+    path: "/System/Applications/Reminders.app/"
+    pos: 9
+  - name: "System Settings"
+    path: "/System/Applications/System Settings.app/"
+    pos: 10
+  - name: "Notes"
+    path: "/System/Applications/Notes.app/"
+    pos: 11
+  - name: "Freeform"
+    path: "/System/Applications/Freeform.app/"
+    pos: 12
+  - name: "Feedback Assistant"
+    path: "/System/Library/CoreServices/Applications/Feedback Assistant.app/"
+    pos: 13
 
 configure_sudoers: false
 sudoers_custom_config: ""
