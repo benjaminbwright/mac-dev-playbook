@@ -127,23 +127,33 @@
           with_fileglob: "{{ post_provision_tasks|default(omit) }}"
       tags: ['post']
     # MySQL Stuff
-    - name: Make sure pymysql is installed
-      become: true
-      pip:
-        name: pymysql
-        state: present
+    # The `pip` Ansible module needs setuptools (pkg_resources) in the target
+    # interpreter, which modern Homebrew Python lacks, and PEP 668 blocks naive
+    # global installs. Install setuptools + PyMySQL straight into the interpreter
+    # Ansible uses for modules, with --break-system-packages. No become: Homebrew's
+    # site-packages is user-writable and shared, so the root-run mysql_user module
+    # (same interpreter) also finds PyMySQL.
+    - name: Ensure setuptools + PyMySQL are available to Ansible's Python (for mysql_* modules).
+      ansible.builtin.command:
+        cmd: "{{ ansible_python.executable }} -m pip install --break-system-packages --quiet setuptools PyMySQL"
+      changed_when: false
+      when: ansible_os_family == "Darwin"
     # https://stackoverflow.com/questions/44824650/starting-homebrew-service-in-ansible-not-working
     - name: Start MySQL Service
       command: /opt/homebrew/bin/brew services start mysql
       when: ansible_os_family == "Darwin"
-    - name: Setup root MySQL user
+    # Best-effort: a root/root local-dev convenience. On a brand-new MySQL the root
+    # account may auth differently, so don't let this block the rest of the run.
+    - name: Setup root MySQL user (continues on error).
       become: true
-      mysql_user:
+      community.mysql.mysql_user:
         login_user: root
         login_password: root
+        login_unix_socket: /tmp/mysql.sock
         name: root
         password: root
         check_implicit_admin: true
+      ignore_errors: true
     # MongoDB Stuff
     - name: Start MongoDB Service
       command: /opt/homebrew/bin/brew services start mongodb-community
