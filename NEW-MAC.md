@@ -127,15 +127,18 @@ ansible-playbook main.yml --ask-become-pass                 # role now skips the
 ```
 This is exactly why step 4 installs Homebrew up front.
 
-**App Store apps fail with "Required `mas` tool is not installed" (even though it is)**
-On Apple Silicon, `mas` lives in `/opt/homebrew/bin`, which isn't on Ansible's
-default task PATH, so the `community.general.mas` module can't find it. `main.yml`
-now sets a play-level `environment.PATH` that prepends Homebrew's bin dir, which
-fixes this. Pull the latest of this repo if you still hit it.
+**App Store apps fail ("Required `mas` tool is not installed", or fatal under the mas role)**
+The `geerlingguy.mac.mas` 5.0.0 role runs `mas` as **root** (`become: true`), but
+`mas` works against *your* signed-in App Store session — root has no Apple ID, so
+it fails (and sudo's PATH reset also hides the `mas` binary). This repo therefore
+**disables that role** and installs App Store apps as your user via
+[tasks/mas.yml](tasks/mas.yml). Pull the latest if you still see the role running.
 
-Separately, note `mas` can only install apps **already in your Apple ID's library**
-(it never first-time "Gets" or purchases). Paid apps (Logic Pro, MainStage, Sketch)
-must be bought once in the App Store; after that they install automatically.
+`mas` can only install apps **already in your Apple ID's library** — it never
+first-time "Gets" or purchases. Paid apps (Logic Pro, MainStage, Sketch) must be
+bought once in the App Store; after that they install automatically. `tasks/mas.yml`
+does not fail the play on an app it can't install — it prints which ones to grab
+by hand.
 
 ## Good to know
 

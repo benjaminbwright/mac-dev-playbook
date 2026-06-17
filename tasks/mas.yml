@@ -1,0 +1,57 @@
+---
+# Install Mac App Store apps as the CURRENT USER (no become).
+#
+# Why not the geerlingguy.mac.mas role? Its 5.0.0 version runs `mas` with
+# become: true (as root). `mas` acts on the signed-in user's App Store session,
+# and root has no Apple ID session, so installs fail. Running as the user is the
+# documented, working way.
+#
+# Limits of `mas` (Apple, not us): it can only install apps already in your
+# Apple ID's library. It never first-time "Gets" or purchases. Paid apps you
+# don't already own (e.g. Logic Pro, MainStage, Sketch) must be bought once in
+# the App Store; afterwards this task installs them automatically. We therefore
+# do NOT fail the play when an individual app can't be installed — we report it.
+
+- name: Check you are signed into the Mac App Store.
+  command: mas account
+  register: mas_account
+  changed_when: false
+  failed_when: false
+
+- name: Warn if not signed into the Mac App Store.
+  debug:
+    msg: >-
+      `mas account` did not return an Apple ID (rc={{ mas_account.rc }}).
+      Sign into the App Store app first, or MAS installs will fail.
+  when: mas_account.rc != 0
+
+- name: List apps already installed from the Mac App Store.
+  command: mas list
+  register: mas_list
+  changed_when: false
+  failed_when: mas_list.rc not in [0, 1]
+
+- name: Install configured Mac App Store apps.
+  command: "mas install {{ item.id | default(item) }}"
+  register: mas_install
+  changed_when: "'Installed' in (mas_install.stdout | default(''))"
+  failed_when: false
+  loop: "{{ mas_installed_apps }}"
+  loop_control:
+    label: "{{ item.name | default(item.id | default(item)) }}"
+  when: (item.id | default(item) | string) not in mas_list.stdout
+
+- name: Report Mac App Store apps that could not be installed automatically.
+  debug:
+    msg: >-
+      Could NOT auto-install "{{ item.item.name | default(item.item.id | default(item.item)) }}"
+      (rc={{ item.rc }}). Likely not in your Apple ID library — install it once
+      from the App Store, then re-run. Detail: {{ (item.stderr | default('')) | trim }}
+  loop: "{{ mas_install.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default(item.item.id | default(item.item)) }}"
+  when:
+    - not (item.skipped | default(false))
+    - item.rc is defined
+    - item.rc != 0
+    - "'already installed' not in ((item.stderr | default('')) | lower)"

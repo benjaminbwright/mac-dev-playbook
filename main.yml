@@ -26,9 +26,14 @@
     - role: geerlingguy.dotfiles
       when: configure_dotfiles
       tags: ['dotfiles']
-    - role: geerlingguy.mac.mas
-      when: mas_installed_apps or mas_installed_app_ids
-      tags: ['mas']
+    # NOTE: geerlingguy.mac.mas (5.0.0) installs App Store apps with the
+    # community.general.mas module run as root (become: true). mas operates on the
+    # signed-in *user's* App Store session, so running it as root can't see your
+    # Apple ID and fails. We install MAS apps ourselves, as the current user, in
+    # tasks/mas.yml below. Re-enable this role only if that limitation is fixed.
+    # - role: geerlingguy.mac.mas
+    #   when: mas_installed_apps or mas_installed_app_ids
+    #   tags: ['mas']
     - role: geerlingguy.mac.dock
       when: configure_dock
       tags: ['dock']
@@ -48,6 +53,10 @@
 
     - import_tasks: tasks/extra-packages.yml
       tags: ['extra-packages']
+
+    - import_tasks: tasks/mas.yml
+      when: mas_installed_apps | length > 0
+      tags: ['mas']
 
     - import_tasks: tasks/sublime-text.yml
       when: configure_sublime
