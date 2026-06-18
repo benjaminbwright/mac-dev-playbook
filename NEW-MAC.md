@@ -221,16 +221,18 @@ re-capture the list later, re-scan the source folders.
 
 ### Repo secrets (.env files)
 The gitignored `.env`/config files aren't in the repos. They live vault-encrypted
-in a separate private repo, [benjaminbwright/secrets](https://github.com/benjaminbwright/secrets).
-After cloning your repos, restore them:
+in a separate private repo, [benjaminbwright/secrets](https://github.com/benjaminbwright/secrets),
+which the playbook **clones for you** (the `--tags repos` step, to
+`~/Development/GitHub/secrets`). Once your repos are cloned, restore the secrets:
 
 ```bash
-git clone git@github.com:benjaminbwright/secrets.git ~/Development/GitHub/secrets
 cd ~/Development/GitHub/secrets
-ansible-playbook restore-secrets.yml --ask-vault-pass   # writes each .env into place
+# optional: skip the prompt -> printf '%s' 'PASSWORD' > .vault_pass && chmod 600 .vault_pass
+make restore
 ```
 
-Needs your ansible-vault password. See that repo's README to update the bundle.
+Needs your ansible-vault password. `make help` lists the other commands
+(`update`, `rekey`, …); see that repo's README.
 
 ## Good to know
 

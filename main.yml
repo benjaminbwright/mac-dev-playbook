@@ -115,6 +115,17 @@
       when: mas_installed_apps | length > 0
       tags: ['mas']
 
+    # Clone the private secrets repo (vault-encrypted .env bundle) so it's ready
+    # for `make restore`. Foundational, so it's a committed task here rather than
+    # relying on the gitignored config.yml manifest. Requires GitHub SSH access.
+    - name: Clone the secrets repo.
+      ansible.builtin.git:
+        repo: git@github.com:benjaminbwright/secrets.git
+        dest: "{{ ansible_env.HOME }}/Development/GitHub/secrets"
+        update: false
+        accept_hostkey: true
+      tags: ['repos', 'secrets']
+
     # Clone personal/work git repos listed in config.yml (git_repositories).
     # The list is gitignored (it leaks repo names), so this no-ops unless config.yml
     # defines it. update: false → clone if missing, never disturb an existing repo.
