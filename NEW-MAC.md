@@ -219,6 +219,19 @@ and push everything on the old Mac first; uncommitted changes, unpushed commits,
 local-only branches, and no-remote repos do NOT transfer (hand-copy those). To
 re-capture the list later, re-scan the source folders.
 
+### Repo secrets (.env files)
+The gitignored `.env`/config files aren't in the repos. They live vault-encrypted
+in a separate private repo, [benjaminbwright/secrets](https://github.com/benjaminbwright/secrets).
+After cloning your repos, restore them:
+
+```bash
+git clone git@github.com:benjaminbwright/secrets.git ~/Development/GitHub/secrets
+cd ~/Development/GitHub/secrets
+ansible-playbook restore-secrets.yml --ask-vault-pass   # writes each .env into place
+```
+
+Needs your ansible-vault password. See that repo's README to update the bundle.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
