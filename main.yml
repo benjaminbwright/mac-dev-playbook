@@ -115,6 +115,24 @@
       when: mas_installed_apps | length > 0
       tags: ['mas']
 
+    # Clone personal/work git repos listed in config.yml (git_repositories).
+    # The list is gitignored (it leaks repo names), so this no-ops unless config.yml
+    # defines it. update: false → clone if missing, never disturb an existing repo.
+    # Requires GitHub SSH access on this machine. ignore_errors so one inaccessible
+    # repo doesn't abort the rest; check the recap for any that failed.
+    - name: Clone configured git repositories.
+      ansible.builtin.git:
+        repo: "{{ item.repo }}"
+        dest: "{{ ansible_env.HOME }}/{{ item.dest }}"
+        version: "{{ item.version | default(omit) }}"
+        update: false
+        accept_hostkey: true
+      loop: "{{ git_repositories | default([]) }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      ignore_errors: true
+      tags: ['repos']
+
     - import_tasks: tasks/sublime-text.yml
       when: configure_sublime
       tags: ['sublime-text']

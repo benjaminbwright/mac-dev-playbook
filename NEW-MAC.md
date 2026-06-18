@@ -203,6 +203,22 @@ Add your local Syncthing server's **Device ID**, accept the pairing on the serve
 then share/accept the folders you want synced into `~`. Run just this step with
 `--tags syncthing`.
 
+## Cloning your repos
+
+The playbook can clone your git repos onto the new Mac. The repo list lives in
+`config.yml` (gitignored — it leaks repo/project names) under `git_repositories`,
+generated from the old Mac. Run with `--tags repos` (needs GitHub SSH access).
+
+```bash
+ansible-playbook main.yml --ask-become-pass --tags repos
+```
+
+It clones each repo's default branch if missing and never disturbs an existing
+checkout (`update: false`). **Cloning only pulls what's on the remote** — commit
+and push everything on the old Mac first; uncommitted changes, unpushed commits,
+local-only branches, and no-remote repos do NOT transfer (hand-copy those). To
+re-capture the list later, re-scan the source folders.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
