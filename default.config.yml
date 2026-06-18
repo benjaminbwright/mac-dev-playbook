@@ -165,10 +165,11 @@ homebrew_installed_packages:
   - cmatrix
   # Mac App Store CLI (used by mas_installed_apps below)
   - mas
-  # NOTE: 'ansible' is also installed via Homebrew on the current machine.
-  # The playbook itself installs Ansible via pip (see main.yml), so it is left
-  # commented to avoid two competing Ansible installs. Uncomment if you prefer brew.
-  # - ansible
+  # Ansible itself — so it's durably installed at /opt/homebrew/bin (on PATH for
+  # make, cron, bare shells, etc.). You still need Ansible present to run this
+  # playbook the first time; bootstrap with `brew install ansible` (see NEW-MAC.md),
+  # and this keeps it installed thereafter.
+  - ansible
 
 homebrew_taps:
   # homebrew/core and homebrew/cask are built into Homebrew now — tapping them

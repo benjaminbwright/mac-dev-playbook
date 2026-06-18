@@ -36,31 +36,22 @@ brew --version   # confirm
 ```
 
 ### 5. Install Ansible
-```bash
-pip3 install --upgrade pip
-pip3 install ansible
-```
-
-`pip3` installs the `ansible*` commands into your Python **user bin** directory,
-which is not on `PATH` by default — so you'll see a warning like
-*"installed in '/Users/you/Library/Python/3.x/bin' which is not on PATH"* and
-`ansible-playbook` won't be found. Add that directory to your PATH. Deriving it
-dynamically survives Python version upgrades (the version number changes per
-machine, e.g. 3.9 on a fresh Mac's bundled Python):
+Use Homebrew (installed in step 4) — its `ansible*` commands land in
+`/opt/homebrew/bin`, which is already on PATH, so there's nothing extra to fix:
 
 ```bash
-# Make it permanent (zsh is the macOS default shell):
-echo 'export PATH="$(python3 -m site --user-base)/bin:/opt/homebrew/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-
-# Confirm it worked:
-which ansible        # -> .../Library/Python/3.x/bin/ansible
-ansible --version
+brew install ansible
+ansible --version   # confirm
 ```
 
-> If you'd rather install Ansible via Homebrew once it's available
-> (`brew install ansible`), its commands land in `/opt/homebrew/bin`, which is
-> already on PATH — no extra step needed.
+The playbook then keeps Ansible installed (it's in `homebrew_installed_packages`),
+so it stays available at `/opt/homebrew/bin` for `make`, cron, and bare shells.
+
+> Prefer pip? `pip3 install --upgrade pip && pip3 install ansible` also works, but
+> it drops the commands in your Python **user bin** (`~/Library/Python/3.x/bin`),
+> which isn't on PATH by default — you'd then need:
+> `echo 'export PATH="$(python3 -m site --user-base)/bin:/opt/homebrew/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`.
+> The Homebrew route avoids all of that.
 
 ### 6. Clone this repo
 ```bash
