@@ -1,0 +1,47 @@
+---
+# Preload global Claude Code config from the PRIVATE dotfiles repo into ~/.claude.
+# Source: the cloned dotfiles repo (dotfiles_repo_local_destination/claude).
+#
+# "Preload" = seed a fresh machine, don't clobber a live one. Claude rewrites
+# settings.json constantly, so settings files are copied only if absent
+# (force: false) and skills are restored only if ~/.claude/skills doesn't exist.
+
+- name: Resolve Claude config source (in the cloned dotfiles repo).
+  ansible.builtin.set_fact:
+    claude_src: "{{ dotfiles_repo_local_destination | expanduser }}/claude"
+
+- name: Check the Claude config snapshot is present.
+  ansible.builtin.stat:
+    path: "{{ claude_src }}"
+  register: claude_src_stat
+
+- name: Preload Claude config.
+  when: claude_src_stat.stat.exists
+  block:
+    - name: Ensure ~/.claude exists.
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.claude"
+        state: directory
+
+    - name: Seed Claude settings files (only if not already present).
+      ansible.builtin.copy:
+        src: "{{ claude_src }}/{{ item.name }}"
+        dest: "{{ ansible_env.HOME }}/.claude/{{ item.name }}"
+        remote_src: true
+        force: false
+        mode: "{{ item.mode | default(omit) }}"
+      loop:
+        - { name: "settings.json" }
+        - { name: "settings.local.json" }
+        - { name: "config.json", mode: "0600" }
+
+    - name: Check whether Claude skills already exist.
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.claude/skills"
+      register: claude_skills_dest
+
+    - name: Restore Claude skills (only on a fresh machine).
+      ansible.builtin.command:
+        cmd: "rsync -a {{ claude_src }}/skills/ {{ ansible_env.HOME }}/.claude/skills/"
+      when: not claude_skills_dest.stat.exists
+      changed_when: true

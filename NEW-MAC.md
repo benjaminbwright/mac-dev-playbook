@@ -225,6 +225,19 @@ make restore
 Needs your ansible-vault password. `make help` lists the other commands
 (`update`, `rekey`, …); see that repo's README.
 
+### Claude Code global config
+Your global Claude config (`settings.json`, `settings.local.json`, `config.json`,
+and your skills) is snapshotted in the private dotfiles repo under `claude/`. The
+playbook **seeds** it into `~/.claude` (the `--tags claude` step) on a fresh Mac —
+it won't overwrite a machine that already has settings/skills. Re-capture with:
+
+```bash
+DF=~/Development/GitHub/dotfiles
+cp ~/.claude/{settings.json,settings.local.json,config.json} "$DF/claude/"
+rsync -aL --delete --exclude .DS_Store ~/.claude/skills/ "$DF/claude/skills/"
+git -C "$DF" add claude && git -C "$DF" commit -m "Update Claude config" && git -C "$DF" push
+```
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
