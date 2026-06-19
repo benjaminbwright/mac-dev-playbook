@@ -1,0 +1,72 @@
+---
+# Restore VS Code + Cursor user settings/keybindings and install extensions.
+# Captured configs live in files/{vscode,cursor}/. Each editor is skipped if its
+# app isn't installed. Extension installs are idempotent (the CLI reports
+# "already installed" and we treat that as unchanged).
+
+# ---------------- VS Code ----------------
+- name: Check whether VS Code is installed.
+  ansible.builtin.stat:
+    path: /Applications/Visual Studio Code.app
+  register: vscode_app
+
+- name: Configure VS Code.
+  when: vscode_app.stat.exists
+  block:
+    - name: Ensure VS Code User directory exists.
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/Library/Application Support/Code/User"
+        state: directory
+
+    - name: Copy VS Code settings.
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/vscode/settings.json"
+        dest: "{{ ansible_env.HOME }}/Library/Application Support/Code/User/settings.json"
+
+    - name: Install VS Code extensions.
+      ansible.builtin.command:
+        argv:
+          - "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+          - "--install-extension"
+          - "{{ item }}"
+      loop: "{{ lookup('file', playbook_dir ~ '/files/vscode/extensions.txt').splitlines() }}"
+      register: vscode_ext
+      changed_when: "'successfully installed' in (vscode_ext.stdout | default('') ~ vscode_ext.stderr | default(''))"
+      failed_when:
+        - vscode_ext.rc != 0
+        - "'already installed' not in (vscode_ext.stdout | default('') ~ vscode_ext.stderr | default(''))"
+
+# ---------------- Cursor ----------------
+- name: Check whether Cursor is installed.
+  ansible.builtin.stat:
+    path: /Applications/Cursor.app
+  register: cursor_app
+
+- name: Configure Cursor.
+  when: cursor_app.stat.exists
+  block:
+    - name: Ensure Cursor User directory exists.
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/Library/Application Support/Cursor/User"
+        state: directory
+
+    - name: Copy Cursor settings + keybindings.
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/cursor/{{ item }}"
+        dest: "{{ ansible_env.HOME }}/Library/Application Support/Cursor/User/{{ item }}"
+      loop:
+        - settings.json
+        - keybindings.json
+
+    - name: Install Cursor extensions.
+      ansible.builtin.command:
+        argv:
+          - "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+          - "--install-extension"
+          - "{{ item }}"
+      loop: "{{ lookup('file', playbook_dir ~ '/files/cursor/extensions.txt').splitlines() }}"
+      register: cursor_ext
+      changed_when: "'successfully installed' in (cursor_ext.stdout | default('') ~ cursor_ext.stderr | default(''))"
+      failed_when:
+        - cursor_ext.rc != 0
+        - "'already installed' not in (cursor_ext.stdout | default('') ~ cursor_ext.stderr | default(''))"

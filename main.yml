@@ -148,6 +148,9 @@
       when: configure_sublime
       tags: ['sublime-text']
 
+    - import_tasks: tasks/editors.yml
+      tags: ['editors']
+
     - block:
         - name: Run configured post-provision ansible task files.
           include_tasks: "{{ outer_item }}"
