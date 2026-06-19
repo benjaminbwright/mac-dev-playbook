@@ -2,9 +2,9 @@
 # Preload global Claude Code config from the PRIVATE dotfiles repo into ~/.claude.
 # Source: the cloned dotfiles repo (dotfiles_repo_local_destination/claude).
 #
-# "Preload" = seed a fresh machine, don't clobber a live one. Claude rewrites
-# settings.json constantly, so settings files are copied only if absent
-# (force: false) and skills are restored only if ~/.claude/skills doesn't exist.
+# Settings files are SEEDED (force: false — don't clobber a machine's live
+# settings). Skills are MERGED with rsync --ignore-existing: missing skills are
+# added, existing ones (incl. this machine's symlinks) are left untouched.
 
 - name: Resolve Claude config source (in the cloned dotfiles repo).
   ansible.builtin.set_fact:
@@ -12,8 +12,16 @@
 
 - name: Check the Claude config snapshot is present.
   ansible.builtin.stat:
-    path: "{{ claude_src }}"
+    path: "{{ claude_src }}/skills"
   register: claude_src_stat
+
+- name: Warn if the Claude snapshot is missing.
+  ansible.builtin.debug:
+    msg: >-
+      Claude config snapshot not found at {{ claude_src }}. Pull the dotfiles repo
+      (git -C {{ dotfiles_repo_local_destination }} pull) so claude/ is present,
+      then re-run with --tags claude.
+  when: not claude_src_stat.stat.exists
 
 - name: Preload Claude config.
   when: claude_src_stat.stat.exists
@@ -35,13 +43,8 @@
         - { name: "settings.local.json" }
         - { name: "config.json", mode: "0600" }
 
-    - name: Check whether Claude skills already exist.
-      ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/.claude/skills"
-      register: claude_skills_dest
-
-    - name: Restore Claude skills (only on a fresh machine).
+    - name: Restore Claude skills (adds missing; never clobbers existing).
       ansible.builtin.command:
-        cmd: "rsync -a {{ claude_src }}/skills/ {{ ansible_env.HOME }}/.claude/skills/"
-      when: not claude_skills_dest.stat.exists
-      changed_when: true
+        cmd: "rsync -ai --ignore-existing {{ claude_src }}/skills/ {{ ansible_env.HOME }}/.claude/skills/"
+      register: claude_skills_sync
+      changed_when: claude_skills_sync.stdout | trim | length > 0
