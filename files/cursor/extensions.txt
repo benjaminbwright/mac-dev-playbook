@@ -1,5 +1,7 @@
 anthropic.claude-code
 anysphere.cursorpyright
+anysphere.remote-containers
+anysphere.remote-ssh
 bradlc.vscode-tailwindcss
 csstools.postcss
 dbaeumer.vscode-eslint
