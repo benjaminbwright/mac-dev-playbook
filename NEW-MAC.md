@@ -196,9 +196,16 @@ then share/accept the folders you want synced into `~`. Run just this step with
 
 ## Cloning your repos
 
-The playbook can clone your git repos onto the new Mac. The repo list lives in
-`config.yml` (gitignored — it leaks repo/project names) under `git_repositories`,
-generated from the old Mac. Run with `--tags repos` (needs GitHub SSH access).
+The playbook can clone your git repos onto the new Mac. The repo list
+(`git_repositories`) lives in the **private dotfiles repo** as `repos.yml`
+(it leaks repo/project names, so it is not in this public playbook). `main.yml`
+loads `~/Development/GitHub/dotfiles/repos.yml` automatically when it exists, so
+the list arrives with the dotfiles clone — nothing to hand-copy. A
+`git_repositories` list in the gitignored `config.yml` still works as a fallback;
+`repos.yml` wins when both define it.
+
+Run with `--tags repos` (needs GitHub SSH access). On a fresh Mac the dotfiles
+repo is cloned by the main run, so run this *after* the full playbook:
 
 ```bash
 ansible-playbook main.yml --ask-become-pass --tags repos
@@ -207,8 +214,23 @@ ansible-playbook main.yml --ask-become-pass --tags repos
 It clones each repo's default branch if missing and never disturbs an existing
 checkout (`update: false`). **Cloning only pulls what's on the remote** — commit
 and push everything on the old Mac first; uncommitted changes, unpushed commits,
-local-only branches, and no-remote repos do NOT transfer (hand-copy those). To
-re-capture the list later, re-scan the source folders.
+local-only branches, and no-remote repos do NOT transfer (hand-copy those).
+
+**Capture / re-capture the list** on the old Mac with the generator script. It
+scans `~/praxis-loop`, `~/Development/GitHub`, `~/active-git`, `~/sandbox`,
+`~/xpow` and `~/agent-avocado` by default (pass folders to override), finds git
+repos up to two levels deep, skips `wt-*` worktree checkouts and repos with no
+remote (listed on stderr), and prints the YAML grouped by folder. Preview to the
+terminal first, then write it into the dotfiles clone and commit there:
+
+```bash
+scripts/generate-repo-manifest.sh                       # preview on stdout
+scripts/generate-repo-manifest.sh -o ~/Development/GitHub/dotfiles/repos.yml
+$EDITOR ~/Development/GitHub/dotfiles/repos.yml         # prune what you don't want
+git -C ~/Development/GitHub/dotfiles add repos.yml \
+  && git -C ~/Development/GitHub/dotfiles commit -m "Update repo manifest" \
+  && git -C ~/Development/GitHub/dotfiles push
+```
 
 ### Repo secrets (.env files)
 The gitignored `.env`/config files aren't in the repos. They live vault-encrypted
