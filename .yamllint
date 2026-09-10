@@ -8,3 +8,6 @@ rules:
 
 ignore: |
   .github/stale.yml
+  roles/
+  .ansible/
+  .claude/

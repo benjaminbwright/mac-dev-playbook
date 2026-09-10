@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: Provision this Mac.
+  hosts: all
 
   # Ensure Homebrew's bin dir is on PATH for every task. Apple Silicon installs
   # brew to /opt/homebrew/bin, which is NOT on Ansible's default task PATH
@@ -60,6 +61,53 @@
       when: configure_dock | default(false)
       tags: ['dock', 'homebrew']
 
+    # The geerlingguy.dotfiles role REMOVES ~/<file> before linking it and then
+    # fails if the clone lacks the source, so listing a file the snapshot doesn't
+    # have yet would delete the live copy and abort the run. Clone first, then
+    # hand the role only the files the clone actually has, and say which were
+    # skipped. Capture missing ones with scripts/capture-dotfiles.sh.
+    - name: Ensure the dotfiles repo is cloned (to check which files it has).
+      ansible.builtin.git:
+        repo: "{{ dotfiles_repo }}"
+        dest: "{{ dotfiles_repo_local_destination }}"
+        version: "{{ dotfiles_repo_version }}"
+        accept_hostkey: "{{ dotfiles_repo_accept_hostkey }}"
+      become: false
+      when: configure_dotfiles
+      tags: ['dotfiles']
+
+    - name: Check which configured dotfiles the clone actually has.
+      ansible.builtin.stat:
+        path: "{{ dotfiles_repo_local_destination | expanduser }}/{{ item }}"
+      loop: "{{ dotfiles_files }}"
+      register: dotfiles_in_clone
+      become: false
+      when: configure_dotfiles
+      tags: ['dotfiles']
+
+    - name: Warn about dotfiles missing from the clone (left untouched, not linked).
+      ansible.builtin.debug:
+        msg: >-
+          Dotfiles missing from {{ dotfiles_repo_local_destination }}, so they are
+          NOT linked and the live copies in ~ are left alone:
+          {{ dotfiles_missing_from_clone | join(', ') }}.
+          Capture them with scripts/capture-dotfiles.sh, commit them to the
+          dotfiles repo, then re-run with --tags dotfiles.
+      vars:
+        dotfiles_missing_from_clone: >-
+          {{ dotfiles_in_clone.results | rejectattr('stat.exists') | map(attribute='item') | list }}
+      when:
+        - configure_dotfiles
+        - dotfiles_missing_from_clone | length > 0
+      tags: ['dotfiles']
+
+    - name: Only hand the dotfiles role the files the clone has.
+      ansible.builtin.set_fact:
+        dotfiles_files: >-
+          {{ dotfiles_in_clone.results | selectattr('stat.exists') | map(attribute='item') | list }}
+      when: configure_dotfiles
+      tags: ['dotfiles']
+
   roles:
     - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
@@ -111,22 +159,27 @@
         label: "{{ item.name | default(item) }}"
       tags: ['homebrew']
 
-    - import_tasks: tasks/sudoers.yml
+    - name: Configure sudoers.
+      import_tasks: tasks/sudoers.yml
       when: configure_sudoers
       tags: ['sudoers']
 
-    - import_tasks: tasks/terminal.yml
+    - name: Configure Terminal.app.
+      import_tasks: tasks/terminal.yml
       when: configure_terminal
       tags: ['terminal']
 
-    - import_tasks: tasks/osx.yml
+    - name: Configure macOS defaults.
+      import_tasks: tasks/osx.yml
       when: configure_osx
       tags: ['osx']
 
-    - import_tasks: tasks/extra-packages.yml
+    - name: Install extra packages (composer, npm, pip, gem).
+      import_tasks: tasks/extra-packages.yml
       tags: ['extra-packages']
 
-    - import_tasks: tasks/mas.yml
+    - name: Install Mac App Store apps.
+      import_tasks: tasks/mas.yml
       when: mas_installed_apps | length > 0
       tags: ['mas']
 
@@ -159,23 +212,27 @@
       ignore_errors: true
       tags: ['repos']
 
-    - import_tasks: tasks/sublime-text.yml
+    - name: Configure Sublime Text.
+      import_tasks: tasks/sublime-text.yml
       when: configure_sublime
       tags: ['sublime-text']
 
-    - import_tasks: tasks/editors.yml
+    - name: Configure VS Code and Cursor.
+      import_tasks: tasks/editors.yml
       tags: ['editors']
 
-    - import_tasks: tasks/claude.yml
+    - name: Preload Claude Code config.
+      import_tasks: tasks/claude.yml
       tags: ['claude']
 
-    - block:
+    - name: Run configured post-provision task files.
+      tags: ['post']
+      block:
         - name: Run configured post-provision ansible task files.
           include_tasks: "{{ outer_item }}"
           loop_control:
             loop_var: outer_item
-          with_fileglob: "{{ post_provision_tasks|default(omit) }}"
-      tags: ['post']
+          with_fileglob: "{{ post_provision_tasks | default(omit) }}"
     # MySQL Stuff
     # The `pip` Ansible module needs setuptools (pkg_resources) in the target
     # interpreter, which modern Homebrew Python lacks, and PEP 668 blocks naive
@@ -191,6 +248,8 @@
     # https://stackoverflow.com/questions/44824650/starting-homebrew-service-in-ansible-not-working
     - name: Start MySQL Service
       command: /opt/homebrew/bin/brew services start mysql
+      register: mysql_service
+      changed_when: "'already started' not in (mysql_service.stdout | default(''))"
       when:
         - ansible_os_family == "Darwin"
         - "'mysql' in (homebrew_services_started | default([]))"
@@ -233,6 +292,8 @@
     # MongoDB Stuff
     - name: Start MongoDB Service
       command: /opt/homebrew/bin/brew services start mongodb-community
+      register: mongodb_service
+      changed_when: "'already started' not in (mongodb_service.stdout | default(''))"
       when:
         - ansible_os_family == "Darwin"
         - "'mongodb-community' in (homebrew_services_started | default([]))"
@@ -259,17 +320,20 @@
     # Restore local databases + Docker volumes from a scripts/db-dump.sh dump.
     # Opt-in: the 'never' tag keeps it out of a default run; invoke with
     # `ansible-playbook main.yml --tags db-restore`. See NEW-MAC.md.
-    - import_tasks: tasks/db-restore.yml
+    - name: Restore local databases from a dump (opt-in, --tags db-restore).
+      import_tasks: tasks/db-restore.yml
       tags: ['db-restore', 'never']
 
     # Background services, LaunchAgents and login items (see default.config.yml:
     # homebrew_services_started, configure_active_git_agent, login_items).
-    - import_tasks: tasks/services.yml
+    - name: Configure background services, LaunchAgents and login items.
+      import_tasks: tasks/services.yml
       tags: ['services']
 
     # CLIs that ship a vendor installer instead of a Homebrew formula/cask
     # (issue #10). Each is guarded with `creates:` so re-runs are no-ops.
-    - import_tasks: tasks/installer-clis.yml
+    - name: Install CLIs that ship a vendor installer.
+      import_tasks: tasks/installer-clis.yml
       tags: ['installer-clis']
 
     # Language toolchains outside Homebrew (nvm/pyenv/go/cargo/pipx/npm/pip).
@@ -283,6 +347,7 @@
     # Nested dotfiles (.ssh/config, .warp/..., .aws/config, ...). The
     # geerlingguy.dotfiles role above only links top-level files; this links
     # dotfiles_nested_files from the same clone (see default.config.yml).
-    - import_tasks: tasks/dotfiles-nested.yml
+    - name: Link nested dotfiles from the dotfiles clone.
+      import_tasks: tasks/dotfiles-nested.yml
       when: configure_dotfiles
       tags: ['dotfiles']

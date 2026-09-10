@@ -284,6 +284,12 @@ then `dotfiles commit -am "..."` and `dotfiles push`; on another machine
 `dotfiles-pull`. Commit before re-running `--tags dotfiles` (the symlinked files
 always show as local edits in the repo).
 
+> The playbook only links files that exist in the dotfiles clone. Anything in
+> `dotfiles_files` that the clone lacks is reported and skipped (the live copy
+> in `~` is left alone) instead of being deleted, which is what the dotfiles
+> role would otherwise do. Capture it with `scripts/capture-dotfiles.sh`, commit
+> in the clone, and re-run `--tags dotfiles`.
+
 ## Document sync (Syncthing)
 
 The playbook installs the `syncthing` formula and starts it as a login service

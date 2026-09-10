@@ -10,6 +10,7 @@
   copy:
     src: files/terminal/JJG-Term.terminal
     dest: /tmp/JJG-Term.terminal
+    mode: "0644"
   changed_when: false
   when: "'JJG-Term' not in terminal_theme.stdout"
 

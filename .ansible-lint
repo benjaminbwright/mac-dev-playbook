@@ -1,4 +1,25 @@
 ---
+# Galaxy roles are installed into ./roles (see ansible.cfg) locally and in CI;
+# they are upstream code, not ours to lint.
+exclude_paths:
+  - roles/
+  - .ansible/
+  - .claude/
+  - .github/stale.yml
+
 skip_list:
   - experimental
   - fqcn-builtins
+  # requirements.yml installs community.mysql; ansible.mysql is a newer canonical
+  # name we have not migrated to.
+  - fqcn[canonical]
+  # dockitems_* / dockutil_install are the geerlingguy.mac.dock role's own
+  # parameter names; we can't rename them.
+  - var-naming[no-role-prefix]
+
+warn_list:
+  # Deliberate best-effort tasks (root MySQL user, rustup init, repo clones
+  # that need SSH); they must not abort a fresh-machine run.
+  - ignore-errors
+  # Repo clones intentionally track a branch, not a pinned commit.
+  - latest[git]
