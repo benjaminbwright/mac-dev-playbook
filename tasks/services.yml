@@ -1,0 +1,90 @@
+---
+# Background services, LaunchAgents and login items (issue #11).
+# Config lives in default.config.yml: homebrew_services_started,
+# configure_active_git_agent, login_items. Run alone with --tags services.
+
+# `brew services start` is idempotent (an already-running service prints
+# "already started"). As elsewhere in main.yml, don't trust brew's exit code;
+# key failure on its 'Error:' prefix. Skipped in check mode (command module).
+- name: Ensure configured Homebrew services are started.
+  ansible.builtin.command:
+    cmd: "/opt/homebrew/bin/brew services start {{ item }}"
+  register: brew_service
+  changed_when: "'already started' not in (brew_service.stdout | default(''))"
+  failed_when: >-
+    'Error:' in (brew_service.stdout | default('')) or
+    'Error:' in (brew_service.stderr | default(''))
+  loop: "{{ homebrew_services_started | default([]) }}"
+  when: ansible_os_family == "Darwin"
+
+# Opt-in hourly `active-git` LaunchAgent (configure_active_git_agent). The
+# template uses the stable /opt/homebrew/bin/node shim rather than a versioned
+# Cellar path, which is what killed the old Mac's hand-written copy. Requires the
+# `active-git` npm package (its bin lives at /opt/homebrew/bin/active-git).
+- name: Configure the active-git LaunchAgent.
+  when: configure_active_git_agent | default(false)
+  block:
+    - name: Ensure ~/Library/LaunchAgents exists.
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/Library/LaunchAgents"
+        state: directory
+        mode: "0755"
+
+    - name: Install the active-git LaunchAgent plist.
+      ansible.builtin.template:
+        src: templates/com.active-git.plist.j2
+        dest: "{{ ansible_env.HOME }}/Library/LaunchAgents/com.active-git.plist"
+        mode: "0644"
+      register: active_git_plist
+
+    # (Re)load only when the plist changed. bootout fails harmlessly if the agent
+    # isn't loaded yet, so ignore its exit code; bootstrap is the one that matters.
+    # Not a handler because this file is imported into main.yml, which declares
+    # none; the `when` gives the same run-on-change semantics.
+    - name: Load the active-git LaunchAgent.  # noqa: no-handler
+      ansible.builtin.shell:
+        cmd: >-
+          launchctl bootout gui/$(id -u)/com.active-git 2>/dev/null;
+          launchctl bootstrap gui/$(id -u)
+          "{{ ansible_env.HOME }}/Library/LaunchAgents/com.active-git.plist"
+      changed_when: true
+      when: active_git_plist is changed
+
+# Login items (System Events, via osascript). Idempotent: only names missing from
+# the current list are added, and apps that aren't installed are skipped. The
+# read is allowed in --check mode (it's read-only) so a dry run is meaningful.
+# macOS prompts once for Automation permission (Terminal -> System Events).
+- name: Manage login items.
+  when: login_items | default([]) | length > 0
+  block:
+    - name: Read the current login items.
+      ansible.builtin.command:
+        argv:
+          - osascript
+          - -e
+          - 'tell application "System Events" to get the name of every login item'
+      register: login_items_current
+      changed_when: false
+      check_mode: false
+
+    - name: Check which configured login-item apps are installed.
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ login_items }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: login_item_apps
+
+    - name: Add missing login items.
+      ansible.builtin.command:
+        argv:
+          - osascript
+          - -e
+          - 'tell application "System Events" to make login item at end with properties {path:"{{ item.item.path }}", hidden:{{ item.item.hidden | default(false) | lower }}}'
+      loop: "{{ login_item_apps.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      changed_when: true  # only runs for items that are missing
+      when:
+        - item.stat.exists
+        - item.item.name not in (login_items_current.stdout | default('')).split(', ')
