@@ -1,0 +1,17 @@
+---
+# Test harness for tasks/dotfiles-nested.yml (see tests/dotfiles-nested.bats).
+# Runs ONLY that task file, with HOME pointed at a temp dir and
+# dotfiles_repo_local_destination passed in with -e. Never run it against a
+# real home directory; use main.yml --tags dotfiles for that.
+- name: Link nested dotfiles into a throwaway HOME (test harness).
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars_files:
+    - ../default.config.yml
+
+  tasks:
+    - name: Run the nested-dotfiles tasks.
+      import_tasks: ../tasks/dotfiles-nested.yml

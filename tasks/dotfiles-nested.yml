@@ -1,0 +1,41 @@
+---
+# Symlink NESTED dotfiles (paths with a directory component, e.g. .ssh/config)
+# from the cloned dotfiles repo into ~. The geerlingguy.dotfiles role only
+# links top-level files (dotfiles_files); this covers dotfiles_nested_files
+# from default.config.yml, at the same relative path in the clone.
+#
+# A path that isn't in the clone yet is skipped (no dangling link, no stray
+# parent dir), so this is safe to run before the file has been captured with
+# scripts/capture-dotfiles.sh on the old Mac. Like the role, an existing plain
+# file in ~ is replaced by the link. become is off so the links (and ~/.ssh)
+# belong to the user, not root.
+
+- name: Check which nested dotfiles exist in the clone.
+  ansible.builtin.stat:
+    path: "{{ dotfiles_repo_local_destination }}/{{ item }}"
+  loop: "{{ dotfiles_nested_files | default([]) }}"
+  register: dotfiles_nested_src
+  become: false
+
+- name: Ensure parent directories for nested dotfiles exist (~/.ssh kept 0700).
+  ansible.builtin.file:
+    path: "{{ dotfiles_home | default('~') }}/{{ item.item | dirname }}"
+    state: directory
+    mode: "{{ '0700' if item.item.startswith('.ssh/') else omit }}"
+  loop: "{{ dotfiles_nested_src.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+  become: false
+
+- name: Link nested dotfiles into the home folder.
+  ansible.builtin.file:
+    src: "{{ dotfiles_repo_local_destination }}/{{ item.item }}"
+    dest: "{{ dotfiles_home | default('~') }}/{{ item.item }}"
+    state: link
+    force: true
+  loop: "{{ dotfiles_nested_src.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+  become: false
