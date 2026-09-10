@@ -245,12 +245,15 @@ homebrew_cask_apps:
 # managed by their own installer). After running the playbook on a new Mac,
 # install these by hand so nothing is forgotten. Captured 2026-06-16.
 #
+# When auditing the old Mac, check ~/Applications as well as /Applications:
+# some installers (e.g. Autodesk Fusion) put their apps there instead.
+#
 # Adobe Creative Cloud (install the CC desktop app first, then each app):
 #   - Adobe Creative Cloud .... https://creativecloud.adobe.com/apps/download/creative-cloud
-#   - Acrobat (DC)
+#   - Acrobat DC
 #   - Audition
 #   - Illustrator
-#   - Photoshop
+#   - Photoshop 2024 and Photoshop 2025 (both are installed; keep both)
 #   - Premiere Pro
 #   - Media Encoder
 #
@@ -260,6 +263,13 @@ homebrew_cask_apps:
 #   - GoodMorning ............. (verify source / vendor)
 #   - BookWright .............. Blurb book-design tool: https://www.blurb.com/bookwright
 #   - Victory Shield .......... (verify source / vendor)
+#   - Autodesk Fusion ......... https://www.autodesk.com/products/fusion-360/ (installs to ~/Applications)
+#   - Steam ................... https://store.steampowered.com/about/
+#   - SkillVault Desktop ...... (verify source / vendor)
+#   - ChatGPT Classic ......... separate app from the `chatgpt` cask; install from https://chatgpt.com/
+#   - Google Docs ............. Chrome PWA; re-install from Chrome (open docs.google.com > Install app)
+#   - Google Sheets ........... Chrome PWA; re-install from Chrome (open sheets.google.com > Install app)
+#   - Google Slides ........... Chrome PWA; re-install from Chrome (open slides.google.com > Install app)
 # ---------------------------------------------------------------------------
 
 homebrew_cask_uninstalled_apps:

@@ -250,5 +250,10 @@ git -C "$DF" add claude && git -C "$DF" commit -m "Update Claude config" && git 
 Before wiping it:
 - Sign out of Adobe Creative Cloud
 - Sign out of Panic Sync in Transmit
+- Sign out of Steam
 - Deauthorize Apple Music
+- Unlink / deauthorize Dropbox (Preferences > Account > Unlink This Dropbox)
+- Disconnect Google Drive (Google Drive menu > Settings > Disconnect account)
+- Remove the old Mac from Tailscale (admin console > Machines) and from Syncthing on the server side (remove the old device ID from the server's device list)
+- Revoke the old Mac's SSH key on GitHub and on the remote server (`~/.ssh/authorized_keys`) -- only after the new Mac's key is confirmed working
 - Copy over anything machine-local you want (e.g. `~/Development`, fonts, SSH keys).
