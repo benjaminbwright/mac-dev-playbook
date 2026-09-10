@@ -499,6 +499,34 @@ npm ls -g --depth=0
 /opt/homebrew/bin/python3 -m pip list --not-required
 ```
 
+## Am I in sync? (`make audit`)
+
+Every gap in this playbook was originally found by hand-diffing a Mac against the
+config. `make audit` makes that repeatable. It is **read-only** (only `list`/`status`
+commands and file reads — it never installs, writes or runs the playbook), so run
+it on **both Macs during the overlap**, and any time afterwards:
+
+```bash
+make audit                                  # everything
+scripts/audit.sh --section repo-state       # one section (see --help for the list)
+scripts/audit.sh --strict                   # exit 1 if anything drifted (for scripts)
+```
+
+It prints drift in **both directions** for: Homebrew formulae/casks/taps, App Store
+apps (`mas list` vs `mas_installed_apps`), VS Code/Cursor extensions plus a `diff` of
+their settings files, Claude skills on disk vs `~/.agents/.skill-lock.json`, dotfiles
+in `~` that aren't symlinks into the dotfiles repo, repos with no remote / not in
+`git_repositories` / missing on disk, and repos with dirty, unpushed or stashed work.
+
+- **Old Mac:** anything under `repos` / `repo-state` is work that will NOT transfer —
+  push it, add the repo to `config.yml`, or hand-copy it. Anything "installed, not
+  declared" is something to add to `default.config.yml` (or consciously drop).
+- **New Mac:** after the playbook runs, "declared, not installed" is what still
+  needs attention (usually an App Store sign-in, a manual install, or a failed step).
+
+Repo scanning covers the top-level folders named in `git_repositories` plus
+`~/Development`; override with `AUDIT_REPO_ROOTS=~/work:~/src make audit`.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password

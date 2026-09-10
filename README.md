@@ -46,6 +46,10 @@ You can filter which part of the provisioning process to run by specifying a set
 
     ansible-playbook main.yml -K --tags "dotfiles,homebrew"
 
+### Am I in sync? (`make audit`)
+
+`make audit` (= `scripts/audit.sh`) is a **read-only** parity check: it compares this Mac against `default.config.yml` (+ `config.yml`) and `files/` in both directions and prints the drift — Homebrew formulae/casks/taps, App Store apps, VS Code/Cursor extensions and settings, Claude skills vs the skill lock file, dotfiles that aren't symlinks into the dotfiles repo, repos that are missing/unmanifested/no-remote, and repos with dirty, unpushed or stashed work. It never changes anything, so run it any time; `scripts/audit.sh --section brew` runs one section, `--strict` exits 1 on drift (for scripts), `--help` lists the rest. `make lint` and `make test` run the CI linters and the bats tests.
+
 ## Overriding Defaults
 
 Not everyone's development environment and preferred software configuration is the same.
