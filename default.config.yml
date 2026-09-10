@@ -378,6 +378,30 @@ mysql_packages:
 db_dump_dir: ~/Development/db-dumps/latest
 db_docker_volumes: []
 
+# Services, LaunchAgents and login items (tasks/services.yml, --tags services)
+# Homebrew services to `brew services start` (idempotent; starts them as login
+# services). Only what the old Mac actually ran. postgresql@14 and caddy are
+# installed but deliberately NOT started - add them here to opt in.
+homebrew_services_started:
+  - mysql
+  - mongodb-community
+  - syncthing
+# Opt-in: install ~/Library/LaunchAgents/com.active-git.plist (hourly run of the
+# `active-git` npm tool) from templates/, using the stable /opt/homebrew/bin/node
+# path. The old Mac's copy pointed at a Cellar path for a node that no longer
+# exists, so it was already dead there; off by default until the tool is wanted.
+configure_active_git_agent: false
+# Login items to add via System Events (only apps with a stable /Applications
+# path; helpers like FigmaAgent and Acrobat's synchronizer register themselves
+# when their parent app first runs). Items whose path is missing are skipped.
+login_items:
+  - name: Dropbox
+    path: /Applications/Dropbox.app
+  - name: Google Drive
+    path: /Applications/Google Drive.app
+  - name: Claude
+    path: /Applications/Claude.app
+
 # python
 # Do NOT hardcode /opt/homebrew/bin/python3 here: on a fresh Mac that path does
 # not exist until the homebrew role runs, but fact-gathering happens first, so

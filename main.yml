@@ -191,9 +191,31 @@
     # https://stackoverflow.com/questions/44824650/starting-homebrew-service-in-ansible-not-working
     - name: Start MySQL Service
       command: /opt/homebrew/bin/brew services start mysql
-      when: ansible_os_family == "Darwin"
+      when:
+        - ansible_os_family == "Darwin"
+        - "'mysql' in (homebrew_services_started | default([]))"
+    # `brew services start` returns before mysqld accepts connections (and a fresh
+    # install initialises its datadir on first start), so wait for the socket to
+    # answer before touching the root account. `mysqladmin ping` exits 0 whenever
+    # the server is alive, even if auth fails, which is all we need to know here.
+    # Never fails the run: if MySQL doesn't come up, the root task below is skipped.
+    - name: Probe whether MySQL is accepting connections on its socket.
+      ansible.builtin.command:
+        cmd: /opt/homebrew/bin/mysqladmin --socket=/tmp/mysql.sock --connect-timeout=3 ping
+      register: mysql_ping
+      changed_when: false
+      retries: 10
+      delay: 3
+      until: mysql_ping.rc == 0
+      ignore_errors: true
+      when:
+        - ansible_os_family == "Darwin"
+        - not ansible_check_mode
+        - "'mysql' in (homebrew_services_started | default([]))"
     # Best-effort: a root/root local-dev convenience. On a brand-new MySQL the root
     # account may auth differently, so don't let this block the rest of the run.
+    # Skipped in --check mode (mysql_user can't dry-run a login) and whenever the
+    # probe above didn't get an answer from the server.
     - name: Setup root MySQL user (continues on error).
       become: true
       community.mysql.mysql_user:
@@ -204,10 +226,16 @@
         password: root
         check_implicit_admin: true
       ignore_errors: true
+      when:
+        - not ansible_check_mode
+        - mysql_ping is not skipped
+        - (mysql_ping.rc | default(1)) == 0
     # MongoDB Stuff
     - name: Start MongoDB Service
       command: /opt/homebrew/bin/brew services start mongodb-community
-      when: ansible_os_family == "Darwin"
+      when:
+        - ansible_os_family == "Darwin"
+        - "'mongodb-community' in (homebrew_services_started | default([]))"
     # Syncthing — run as a login service so it syncs continuously in the
     # background. Pair it with your local Syncthing server via the web UI at
     # http://localhost:8384 (add the server's Device ID, then share folders).
@@ -215,7 +243,9 @@
       command: /opt/homebrew/bin/brew services start syncthing
       register: syncthing_service
       changed_when: "'already started' not in (syncthing_service.stdout | default(''))"
-      when: ansible_os_family == "Darwin"
+      when:
+        - ansible_os_family == "Darwin"
+        - "'syncthing' in (homebrew_services_started | default([]))"
       tags: ['syncthing']
     # The rustup formula is keg-only on current Homebrew, so `rustup-init` isn't on
     # PATH — call it by its keg path. `creates` makes this idempotent (skips once
@@ -231,3 +261,8 @@
     # `ansible-playbook main.yml --tags db-restore`. See NEW-MAC.md.
     - import_tasks: tasks/db-restore.yml
       tags: ['db-restore', 'never']
+
+    # Background services, LaunchAgents and login items (see default.config.yml:
+    # homebrew_services_started, configure_active_git_agent, login_items).
+    - import_tasks: tasks/services.yml
+      tags: ['services']

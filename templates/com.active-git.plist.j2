@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Managed by ansible (mac-dev-playbook, templates/com.active-git.plist.j2). -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.active-git</string>
+    <key>WorkingDirectory</key>
+    <string>{{ ansible_env.HOME }}/active-git</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/opt/homebrew/bin/node</string>
+      <string>/opt/homebrew/bin/active-git</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>5</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

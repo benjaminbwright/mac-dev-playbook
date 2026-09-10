@@ -315,6 +315,35 @@ The script uses the `code` / `cursor` shell commands (installed by the Homebrew
 casks, or via the Command Palette → "Shell Command: Install ... in PATH"); an
 editor whose command isn't found is skipped. Tests: `bats tests/`.
 
+## Services and login items
+
+`tasks/services.yml` (run alone with `--tags services`) reproduces the background
+bits of the old Mac. Everything is driven from `default.config.yml`:
+
+- **Homebrew services** — `homebrew_services_started` lists what gets
+  `brew services start`ed as a login service: `mysql`, `mongodb-community`,
+  `syncthing` (what the old Mac actually ran). `postgresql@14` and `caddy` are
+  installed but deliberately *not* started; add them to the list to opt in.
+- **MySQL root password** — the `root`/`root` setup in `main.yml` now waits for
+  `mysqladmin ping` on `/tmp/mysql.sock` (up to ~30s) and is skipped if the server
+  never answers, and always skipped under `--check`. If it was skipped, run
+  `mysqladmin --socket=/tmp/mysql.sock ping` to see why MySQL isn't up
+  (`brew services info mysql`, then `--tags services` again).
+- **active-git LaunchAgent** — off by default (`configure_active_git_agent: false`).
+  The old Mac's `~/Library/LaunchAgents/com.active-git.plist` pointed at a Cellar
+  path for node 19.2.0 that no longer exists, so it was already dead. Set the flag
+  to `true` to template it from `templates/com.active-git.plist.j2` (stable
+  `/opt/homebrew/bin/node`, hourly at :05) and load it; needs the `active-git`
+  npm package on PATH. Remove the old plist by hand on the old Mac if you want:
+  `launchctl bootout gui/$(id -u)/com.active-git; rm ~/Library/LaunchAgents/com.active-git.plist`.
+- **Login items** — `login_items` (Dropbox, Google Drive, Claude) are added via
+  System Events only if missing; apps not yet installed are skipped, so re-run
+  `--tags services` after the manual installs above. macOS asks once to let
+  Terminal control System Events - click OK. The remaining old-Mac login items,
+  **FigmaAgent** and **Acrobat Collaboration Synchronizer**, are helpers that
+  Figma and Acrobat register themselves the first time they run (they live inside
+  the apps, not in `/Applications`), so they are not managed here.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password
