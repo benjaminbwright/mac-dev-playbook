@@ -1,0 +1,4 @@
+#!/bin/bash
+# Test stub: records argv, emits fake SQL on stdout.
+echo "pg_dumpall $*" >> "$STUB_LOG"
+echo "-- fake pg_dumpall output"

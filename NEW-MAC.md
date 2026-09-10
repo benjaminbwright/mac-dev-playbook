@@ -101,6 +101,44 @@ in [default.config.yml](default.config.yml):
 - **GoodMorning** / **Victory Shield** — source TBD; copy the `.app` from the old Mac's
   `/Applications` in the meantime.
 
+### Restoring local databases
+
+Local MySQL / PostgreSQL / MongoDB data and Docker named volumes don't come across
+with the playbook — carry them over with the two scripts in [scripts/](scripts/).
+Both skip anything that isn't installed or running, so it's safe to run them on
+either machine as-is.
+
+**On the old Mac** (with the DB services + Docker running):
+
+```bash
+MYSQL_PWD=root scripts/db-dump.sh --volumes my_pg_data,my_redis_data   # or omit --volumes
+```
+
+Writes `~/Development/db-dumps/<YYYY-MM-DD>/` (mysqldump `--all-databases`,
+`pg_dumpall`, `mongodump`, one `.tar.gz` per volume) and points
+`~/Development/db-dumps/latest` at it. Add `--dry-run` to see the plan first,
+`--dir DIR` to write elsewhere.
+
+**Copy** `~/Development/db-dumps` to the new Mac (it lives outside any git repo —
+use Migration Assistant, AirDrop, rsync, whatever).
+
+**On the new Mac**, after the playbook has installed and started the services:
+
+```bash
+ansible-playbook main.yml -K --tags db-restore
+```
+
+That calls `scripts/db-restore.sh --dir ~/Development/db-dumps/latest --yes` (plus
+`--volumes` from `db_docker_volumes`) and is a no-op if the dump dir isn't there.
+The tag is opt-in (`never`), so a normal playbook run never restores anything.
+Override `db_dump_dir` / `db_docker_volumes` in `config.yml` as needed, or run the
+script by hand — without `--yes` it only prints the plan:
+
+```bash
+scripts/db-restore.sh --dir ~/Development/db-dumps/2026-09-10          # plan only
+scripts/db-restore.sh --dir ~/Development/db-dumps/2026-09-10 --yes    # do it
+```
+
 ## Troubleshooting
 
 **"Gathering Facts" fails with `/opt/homebrew/bin/python3: no such file or directory`**

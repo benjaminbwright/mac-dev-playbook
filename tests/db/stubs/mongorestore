@@ -1,0 +1,3 @@
+#!/bin/bash
+# Test stub: records argv.
+echo "mongorestore $*" >> "$STUB_LOG"

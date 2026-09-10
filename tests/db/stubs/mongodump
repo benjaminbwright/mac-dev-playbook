@@ -1,0 +1,15 @@
+#!/bin/bash
+# Test stub: records argv and creates a fake dump tree under --out.
+echo "mongodump $*" >> "$STUB_LOG"
+out=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --out) out="$2"; shift ;;
+    --out=*) out="${1#--out=}" ;;
+  esac
+  shift
+done
+if [ -n "$out" ]; then
+  mkdir -p "$out/fakedb" && echo fake > "$out/fakedb/coll.bson"
+fi
+exit 0
