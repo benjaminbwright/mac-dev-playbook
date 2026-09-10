@@ -112,6 +112,17 @@ dotfiles_nested_files:
   - .cursor/mcp.json
   - .codex/config.toml
 
+# Claude Code extras restored by tasks/claude.yml (--tags claude); the snapshot
+# itself lives in the dotfiles repo (refresh it with scripts/capture-claude.sh).
+# Agents the `skills` CLI symlinks lock-file skills into (comma-separated).
+claude_skills_agents: claude-code,pi
+# Plugins installed with `claude plugin install` from the official marketplace.
+claude_plugins_user:
+  - gopls-lsp@claude-plugins-official
+# Project-scope plugins: installed only if that project dir exists on this Mac.
+claude_plugins_project:
+  - {plugin: figma@claude-plugins-official, project: ~/praxis-loop/nmohm-web}
+
 homebrew_installed_packages:
   # - ansible # Installed via Pip.
   - autoconf

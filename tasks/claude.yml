@@ -1,18 +1,26 @@
 ---
 # Preload global Claude Code config from the PRIVATE dotfiles repo into ~/.claude.
-# Source: the cloned dotfiles repo (dotfiles_repo_local_destination/claude).
+# Source: the cloned dotfiles repo (dotfiles_repo_local_destination/claude), which
+# is refreshed on the old Mac with scripts/capture-claude.sh.
 #
 # Settings files are SEEDED (force: false — don't clobber a machine's live
-# settings). Skills are MERGED with rsync --ignore-existing: missing skills are
-# added, existing ones (incl. this machine's symlinks) are left untouched.
+# settings). Skills come from two places:
+#   1. claude/skill-lock.json (a copy of ~/.agents/.skill-lock.json): every skill
+#      the `skills` CLI installed is reinstalled with `npx skills add` into
+#      ~/.agents/skills, symlinked into ~/.claude/skills and ~/.pi/agent/skills.
+#   2. claude/skills/<name>/: hand-made skills (not in the lock) are MERGED with
+#      rsync --ignore-existing — missing ones added, existing ones left untouched.
+# Every snapshot piece is stat-guarded, so a partial/stale snapshot never fails
+# the run. NOT restored here: ~/.claude.json (tokens; hand-carry it, see NEW-MAC.md).
 
 - name: Resolve Claude config source (in the cloned dotfiles repo).
   ansible.builtin.set_fact:
     claude_src: "{{ dotfiles_repo_local_destination | expanduser }}/claude"
+    claude_dotfiles: "{{ dotfiles_repo_local_destination | expanduser }}"
 
 - name: Check the Claude config snapshot is present.
   ansible.builtin.stat:
-    path: "{{ claude_src }}/skills"
+    path: "{{ claude_src }}"
   register: claude_src_stat
 
 - name: Warn if the Claude snapshot is missing.
@@ -30,21 +38,146 @@
       ansible.builtin.file:
         path: "{{ ansible_env.HOME }}/.claude"
         state: directory
+        mode: "0755"
+
+    - name: Check which Claude settings files the snapshot has.
+      ansible.builtin.stat:
+        path: "{{ claude_src }}/{{ item.name }}"
+      loop:
+        - {name: "settings.json"}
+        - {name: "settings.local.json"}
+        - {name: "config.json", mode: "0600"}
+      loop_control:
+        label: "{{ item.name }}"
+      register: claude_settings_stat
 
     - name: Seed Claude settings files (only if not already present).
       ansible.builtin.copy:
-        src: "{{ claude_src }}/{{ item.name }}"
-        dest: "{{ ansible_env.HOME }}/.claude/{{ item.name }}"
+        src: "{{ claude_src }}/{{ item.item.name }}"
+        dest: "{{ ansible_env.HOME }}/.claude/{{ item.item.name }}"
         remote_src: true
         force: false
-        mode: "{{ item.mode | default(omit) }}"
-      loop:
-        - { name: "settings.json" }
-        - { name: "settings.local.json" }
-        - { name: "config.json", mode: "0600" }
+        mode: "{{ item.item.mode | default(omit) }}"
+      loop: "{{ claude_settings_stat.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.stat.exists
 
-    - name: Restore Claude skills (adds missing; never clobbers existing).
+    # --- Skills managed by the `skills` CLI (npx skills) --------------------
+    - name: Check for the skills lock file in the snapshot.
+      ansible.builtin.stat:
+        path: "{{ claude_src }}/skill-lock.json"
+      register: claude_lock_stat
+
+    - name: Check npx is available (needed to restore skills from the lock file).
+      ansible.builtin.command: which npx
+      register: claude_npx
+      changed_when: false
+      failed_when: false
+
+    - name: Warn if skills can't be restored from the lock file.
+      ansible.builtin.debug:
+        msg: >-
+          claude/skill-lock.json is present but npx is not on PATH; install node,
+          then re-run with --tags claude to restore skills.
+      when: claude_lock_stat.stat.exists and claude_npx.rc != 0
+
+    - name: Restore skills from the lock file (npx skills add; skips ones already present).
+      ansible.builtin.command:
+        cmd: >-
+          {{ claude_restore_skills_script | default(playbook_dir ~ '/scripts/restore-claude-skills.sh') }}
+          {{ claude_src }}/skill-lock.json
+          --agents {{ claude_skills_agents | default('claude-code,pi') }}
+      environment:
+        HOME: "{{ ansible_env.HOME }}"
+      register: claude_skills_restore
+      changed_when: claude_skills_restore.stdout | trim | length > 0
+      when: claude_lock_stat.stat.exists and claude_npx.rc == 0
+
+    # --- Hand-made skills (real directories in the snapshot) ----------------
+    - name: Check for hand-made skills in the snapshot.
+      ansible.builtin.stat:
+        path: "{{ claude_src }}/skills"
+      register: claude_skills_dir_stat
+
+    # synchronize has no --ignore-existing, so rsync is called directly.
+    - name: Restore hand-made Claude skills (adds missing; never clobbers existing).  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: "rsync -ai --ignore-existing {{ claude_src }}/skills/ {{ ansible_env.HOME }}/.claude/skills/"
       register: claude_skills_sync
       changed_when: claude_skills_sync.stdout | trim | length > 0
+      when: claude_skills_dir_stat.stat.exists
+
+# --- Pi agent (~/.pi/agent) ---------------------------------------------------
+- name: Check for the Pi agent settings snapshot.
+  ansible.builtin.stat:
+    path: "{{ claude_dotfiles }}/pi/agent/settings.json"
+  register: pi_settings_stat
+
+- name: Seed Pi agent settings (only if not already present).
+  when: pi_settings_stat.stat.exists
+  block:
+    - name: Ensure ~/.pi/agent exists.
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.pi/agent"
+        state: directory
+        mode: "0755"
+
+    - name: Seed ~/.pi/agent/settings.json.
+      ansible.builtin.copy:
+        src: "{{ claude_dotfiles }}/pi/agent/settings.json"
+        dest: "{{ ansible_env.HOME }}/.pi/agent/settings.json"
+        remote_src: true
+        force: false
+        mode: "0644"
+
+# --- Claude Code plugins ------------------------------------------------------
+# Plugins aren't part of the dotfiles snapshot; they're installed with the claude
+# CLI from the official marketplace. User-scope plugins always; project-scope
+# plugins only when that project directory exists on this machine.
+- name: Check the claude CLI is available.
+  ansible.builtin.command: which claude
+  register: claude_cli
+  changed_when: false
+  failed_when: false
+
+- name: Install Claude Code plugins.
+  when: claude_cli.rc == 0
+  block:
+    - name: List installed Claude Code plugins.
+      ansible.builtin.command: claude plugin list
+      environment:
+        HOME: "{{ ansible_env.HOME }}"
+      register: claude_plugin_list
+      changed_when: false
+      failed_when: false
+
+    - name: Install user-scope Claude Code plugins.
+      ansible.builtin.command: "claude plugin install {{ item }} --scope user"
+      environment:
+        HOME: "{{ ansible_env.HOME }}"
+      loop: "{{ claude_plugins_user | default(['gopls-lsp@claude-plugins-official']) }}"
+      when: item not in (claude_plugin_list.stdout | default(''))
+      changed_when: true
+
+    - name: Check which project directories exist for project-scope plugins.
+      ansible.builtin.stat:
+        path: "{{ item.project | expanduser }}"
+      loop: "{{ claude_plugins_project | default([]) }}"
+      loop_control:
+        label: "{{ item.plugin }} in {{ item.project }}"
+      register: claude_plugin_projects
+
+    - name: Install project-scope Claude Code plugins (only where the project exists).
+      ansible.builtin.command:
+        cmd: "claude plugin install {{ item.item.plugin }} --scope project"
+        chdir: "{{ item.item.project | expanduser }}"
+      environment:
+        HOME: "{{ ansible_env.HOME }}"
+      loop: "{{ claude_plugin_projects.results }}"
+      loop_control:
+        label: "{{ item.item.plugin }} in {{ item.item.project }}"
+      when:
+        - item.stat.exists
+        - item.item.plugin not in (claude_plugin_list.stdout | default(''))
+      changed_when: true

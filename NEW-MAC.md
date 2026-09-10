@@ -352,17 +352,36 @@ Needs your ansible-vault password. `make help` lists the other commands
 (`update`, `rekey`, …); see that repo's README.
 
 ### Claude Code global config
-Your global Claude config (`settings.json`, `settings.local.json`, `config.json`,
-and your skills) is snapshotted in the private dotfiles repo under `claude/`. The
-playbook **seeds** it into `~/.claude` (the `--tags claude` step) on a fresh Mac —
-it won't overwrite a machine that already has settings/skills. Re-capture with:
+Your global Claude config is snapshotted in the private dotfiles repo and restored
+by the `--tags claude` step ([tasks/claude.yml](tasks/claude.yml)). Everything is
+**seeded** (never overwrites a machine that already has settings/skills) and every
+piece is optional, so a partial snapshot never fails the run. What's restored:
+
+| Live location | Snapshot (dotfiles repo) | How it's restored |
+|---|---|---|
+| `~/.claude/settings.json`, `settings.local.json`, `config.json` | `claude/` | copied if missing |
+| `~/.agents/.skill-lock.json` (skills installed by the `skills` CLI) | `claude/skill-lock.json` | `npx skills add` per skill missing from `~/.claude/skills`, symlinked into `claude-code` + `pi` (`claude_skills_agents`) |
+| hand-made skills (`descript-cut`, `issue-train`, `merge-train`, `rolling-train`) | `claude/skills/<name>/` | rsync, adds missing only |
+| `~/.pi/agent/settings.json` | `pi/agent/settings.json` | copied if missing |
+| plugins `gopls-lsp` (user) and `figma` (project `~/praxis-loop/nmohm-web`) | not snapshotted | `claude plugin install` (`claude_plugins_user` / `claude_plugins_project` in `default.config.yml`); project-scope only if the project dir exists — re-run `--tags claude` after cloning it |
+
+**Re-capture on the old Mac** (idempotent, deletes nothing, then review + commit):
 
 ```bash
+scripts/capture-claude.sh            # defaults to ~/Development/GitHub/dotfiles
 DF=~/Development/GitHub/dotfiles
-cp ~/.claude/{settings.json,settings.local.json,config.json} "$DF/claude/"
-rsync -aL --delete --exclude .DS_Store ~/.claude/skills/ "$DF/claude/skills/"
-git -C "$DF" add claude && git -C "$DF" commit -m "Update Claude config" && git -C "$DF" push
+git -C "$DF" status                  # it prints `git rm` hints for stale skill copies now covered by the lock file
+git -C "$DF" add -A claude pi && git -C "$DF" commit -m "Update Claude config snapshot" && git -C "$DF" push
 ```
+
+`settings.json` is captured as-is, including its large `permissions.allow` list
+(many rules reference paths on the old Mac). Pruning it is a manual judgement call —
+edit the copy in the dotfiles repo before committing if you want a leaner start.
+
+**Hand-carry (not in the snapshot):** `~/.claude.json` holds your OAuth tokens plus
+the `Jam` MCP server and per-project state. Copy it over directly (AirDrop /
+encrypted disk) or sign in again and re-add the MCP server with `claude mcp add`.
+`~/.pi/agent/auth.json` is likewise a secret — hand-carry or re-authenticate.
 
 ## Re-capturing editor config
 

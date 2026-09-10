@@ -1,0 +1,21 @@
+---
+# Test harness for tasks/claude.yml: runs it against a throwaway HOME and a fake
+# dotfiles clone. Driven by tests/claude-tasks.bats; never run against a real HOME.
+#
+#   ansible-playbook -i localhost, tests/claude-tasks.yml \
+#     -e test_home=/tmp/x/home -e test_df=/tmp/x/dotfiles
+- name: Exercise tasks/claude.yml against a throwaway HOME.
+  hosts: all
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_env:
+      HOME: "{{ test_home }}"
+    dotfiles_repo_local_destination: "{{ test_df }}"
+    claude_restore_skills_script: "{{ playbook_dir }}/../scripts/restore-claude-skills.sh"
+    claude_plugins_project:
+      - {plugin: "figma@claude-plugins-official", project: "{{ test_home }}/proj"}
+  tasks:
+    - name: Run the Claude Code config tasks under test.
+      ansible.builtin.import_tasks: ../tasks/claude.yml
