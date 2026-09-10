@@ -170,6 +170,17 @@ homebrew_installed_packages:
   # playbook the first time; bootstrap with `brew install ansible` (see NEW-MAC.md),
   # and this keeps it installed thereafter.
   - ansible
+  # --- Added to mirror current machine (2026-09-10, issue #5) ---
+  # Web server / reverse proxy
+  - caddy
+  # MongoDB shell (companion to mongodb-community above)
+  - mongosh
+  # Pinned legacy Node for older projects (nvm also available)
+  - node@16
+  # Isolated installs of Python CLI tools
+  - pipx
+  # Roku CLI (tap: grahamplata/tap)
+  - grahamplata/tap/roku-remote
 
 homebrew_taps:
   # homebrew/core and homebrew/cask are built into Homebrew now — tapping them
@@ -178,6 +189,7 @@ homebrew_taps:
   - mongodb/brew
   - hashicorp/tap
   - bufbuild/buf
+  - grahamplata/tap  # roku-remote
   # Present on the current machine but not currently backing a declared package:
   # - heroku/brew
   # - hpedrorodrigues/tools
@@ -238,6 +250,13 @@ homebrew_cask_apps:
   - openoffice
   - topaz-gigapixel-ai
   - vassal
+  # --- Added to mirror current machine (2026-09-10, issue #5) ---
+  # Email
+  - thunderbird
+  # Roku remote GUI (CLI counterpart: roku-remote formula above)
+  - roku-remote-tool
+  # NOTE: orbstack is installed alongside Docker Desktop but stays intentionally
+  # omitted pending the Docker Desktop vs OrbStack decision (issue #5).
 
 # ---------------------------------------------------------------------------
 # MANUAL INSTALLS — NOT managed by this playbook.
