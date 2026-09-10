@@ -266,3 +266,8 @@
     # homebrew_services_started, configure_active_git_agent, login_items).
     - import_tasks: tasks/services.yml
       tags: ['services']
+
+    # CLIs that ship a vendor installer instead of a Homebrew formula/cask
+    # (issue #10). Each is guarded with `creates:` so re-runs are no-ops.
+    - import_tasks: tasks/installer-clis.yml
+      tags: ['installer-clis']

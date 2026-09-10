@@ -344,6 +344,48 @@ bits of the old Mac. Everything is driven from `default.config.yml`:
   Figma and Acrobat register themselves the first time they run (they live inside
   the apps, not in `/Applications`), so they are not managed here.
 
+## Installer-based CLIs
+
+Four CLIs on the old Mac came from vendor `curl | sh` installers rather than
+Homebrew ([issue #10](https://github.com/benjaminbwright/mac-dev-playbook/issues/10)).
+The playbook now covers all of them — three moved to Homebrew (installed with
+`--tags homebrew`), one keeps its vendor installer (`--tags installer-clis`):
+
+| Tool | Old Mac | Playbook |
+|---|---|---|
+| `codex` | `~/.local/bin` (vendor installer) | Homebrew cask `codex` |
+| `cursor-agent` | `~/.local/bin` (vendor installer) | Homebrew cask `cursor-cli` (ships the `cursor-agent` binary) |
+| `limbo` | `~/.limbo` (vendor installer) | Homebrew formula `turso` — same project, renamed upstream; the binary is now `tursodb` and `~/.limbo` is not created |
+| `pocket-server` | `~/.pocket-server/bin` | Vendor installer, run by [tasks/installer-clis.yml](tasks/installer-clis.yml); skipped once `~/.pocket-server/bin/pocket-server` exists |
+
+```bash
+ansible-playbook main.yml --ask-become-pass --tags installer-clis
+```
+
+### Make the shell safe when a tool is missing
+The tracked `.zshrc` puts `~/.pocket-server/bin` on PATH, sources `~/.limbo/env`
+and defines two `pocket-server` aliases. On a fresh Mac none of that exists until
+the steps above have run, so [scripts/guard-shell-rc.sh](scripts/guard-shell-rc.sh)
+rewrites an rc file so each such line is guarded: `[ -d … ] &&` for PATH dirs
+(a dir mixed into a longer PATH line is split out into its own guarded line, so
+the other dirs stay on PATH), `[ -f … ] &&` for sourced files, and
+`command -v … &&` for the aliases. It only touches lines it recognises, running
+it twice changes nothing, and it keeps a one-time `<file>.bak` of the original.
+
+Run it **from this repo's directory** against the dotfiles clone (not the
+symlink in `~`), review, then commit in the dotfiles repo:
+
+```bash
+scripts/guard-shell-rc.sh ~/Development/GitHub/dotfiles/.zshrc
+git -C ~/Development/GitHub/dotfiles diff .zshrc      # review the guards
+rm ~/Development/GitHub/dotfiles/.zshrc.bak            # backup no longer needed
+git -C ~/Development/GitHub/dotfiles commit -am "Guard installer-based CLI lines in .zshrc"
+git -C ~/Development/GitHub/dotfiles push
+```
+
+The same command works for any other rc file you later track (e.g. `.zprofile`,
+which currently adds `~/.local/bin` to PATH — see issue #8).
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password

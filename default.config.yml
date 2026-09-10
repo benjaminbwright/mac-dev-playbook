@@ -154,6 +154,9 @@ homebrew_installed_packages:
   - ruff
   - bats-core
   - pi-coding-agent
+  # Was the `limbo` vendor install in ~/.limbo (issue #10); Homebrew renamed the
+  # formula limbo -> turso and the binary is now `tursodb`.
+  - turso
   # Databases
   - postgresql@14
   # File sync (continuous sync to the local Syncthing server; runs as a brew
@@ -225,6 +228,11 @@ homebrew_cask_apps:
   - cursor
   - claude
   - claude-code
+  # Installer-based CLIs that Homebrew now packages (issue #10). On the old Mac
+  # these were vendor installs in ~/.local/bin; the casks put the same binaries
+  # on PATH via /opt/homebrew/bin. `cursor-cli` ships the `cursor-agent` binary.
+  - codex
+  - cursor-cli
   - warp
   - wispr-flow
   - chatgpt

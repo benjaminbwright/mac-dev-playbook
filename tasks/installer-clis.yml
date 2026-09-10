@@ -1,0 +1,29 @@
+---
+# Installer-based CLIs (GitHub issue #10): tools that were installed by a vendor
+# `curl | sh` installer rather than Homebrew. Each task is guarded with
+# `creates:` so it only runs while the tool is missing (idempotent re-runs).
+# Run just this step with `--tags installer-clis`.
+#
+# Only pocket-server still needs a vendor installer. The other tools from the
+# issue are now in Homebrew and are declared in default.config.yml instead:
+#   codex        -> cask `codex`
+#   cursor-agent -> cask `cursor-cli` (ships the `cursor-agent` binary)
+#   limbo        -> formula `turso` (Homebrew renamed limbo -> turso; the binary
+#                   is now `tursodb`, and ~/.limbo is no longer created)
+#
+# Shell side: the tracked .zshrc references ~/.pocket-server/bin and ~/.limbo;
+# scripts/guard-shell-rc.sh wraps those lines in [ -d ]/[ -f ] guards so a
+# fresh shell is fine even before this step has run (see NEW-MAC.md).
+
+# Pocket Server — https://github.com/yayasoumah/pocket-server
+# Official installer (from the project README); it drops a bundled node runtime
+# and the `pocket-server` CLI into ~/.pocket-server/bin. Runs as the login user
+# (become: false) so it lands in *your* home, not root's.
+- name: Install pocket-server via the vendor installer (skipped once present).
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && curl -fsSL https://www.pocket-agent.xyz/install | bash"
+    creates: "{{ ansible_env.HOME }}/.pocket-server/bin/pocket-server"
+  args:
+    executable: /bin/bash
+  become: false
+  when: ansible_os_family == "Darwin"
