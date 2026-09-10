@@ -386,6 +386,53 @@ git -C ~/Development/GitHub/dotfiles push
 The same command works for any other rc file you later track (e.g. `.zprofile`,
 which currently adds `~/.local/bin` to PATH — see issue #8).
 
+## Language toolchains
+
+Toolchains that live outside Homebrew are reproduced by
+[tasks/toolchains.yml](tasks/toolchains.yml); the lists live in
+[default.config.yml](default.config.yml) under **LANGUAGE TOOLCHAINS**. It runs
+last in the full playbook (it needs brew's managers and `rustup-init`), or alone:
+
+```bash
+ansible-playbook main.yml --ask-become-pass --tags toolchains
+```
+
+| Manager | Installs | Guard (re-runs are no-ops) |
+|---|---|---|
+| nvm | Node `20` (default) and `24` | `~/.nvm/versions/node/v<ver>*` exists |
+| pyenv | Python 3.10.13, set as `pyenv global` | `~/.pyenv/versions/<ver>` exists |
+| `go install` | gopls, golangci-lint, staticcheck, goimports, govulncheck, gosec, protoc-gen-go, go-jsonschema, amtool | `~/go/bin/<name>` exists |
+| cargo | mdbook, wasm-pack | `~/.cargo/bin/<name>` exists |
+| pipx | ansible-lint, yamllint | `~/.local/bin/<name>` exists |
+| `npm -g` (nvm default Node) | `@playwright/mcp` | package dir under the default Node |
+| Homebrew `python3 -m pip` | pypdf, pillow, Jinja2, PyYAML (`--break-system-packages`) | pip's own "already satisfied" |
+
+Everything installs as your user (never `become`), and every task is
+idempotent, so `--tags toolchains` is safe to re-run after editing a list.
+
+Decisions you may want to revisit:
+- **Node trimmed** from 16 / 18 / 20.x / 24 on the old Mac to `20` + `24`. Add
+  `"16"` or `"18"` to `nvm_node_versions` if a project still needs them.
+- **yarn globals dropped** (create-next-app, create-vite, turbo were 2023-era;
+  use `npx`/`pnpm dlx` per project instead).
+- **Local links skipped**: `issue-duck` (`npm link`) and `irep` (a project's own
+  `go install`) are rebuilt from their repos, not listed here.
+- **pnpm setup is opt-in** (`toolchains_pnpm_setup: true`). pnpm works
+  per-project without it; `pnpm setup` is only for `pnpm add -g`, and it appends
+  `PNPM_HOME` to `~/.zshrc`, which the dotfiles repo owns.
+
+To re-capture the lists from a machine later:
+
+```bash
+ls ~/.nvm/versions/node; cat ~/.nvm/alias/default
+pyenv versions
+ls ~/go/bin              # module paths: go version -m ~/go/bin/<name> | grep path
+cargo install --list
+pipx list --short
+npm ls -g --depth=0
+/opt/homebrew/bin/python3 -m pip list --not-required
+```
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password

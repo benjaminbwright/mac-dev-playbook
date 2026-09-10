@@ -271,3 +271,11 @@
     # (issue #10). Each is guarded with `creates:` so re-runs are no-ops.
     - import_tasks: tasks/installer-clis.yml
       tags: ['installer-clis']
+
+    # Language toolchains outside Homebrew (nvm/pyenv/go/cargo/pipx/npm/pip).
+    # Runs last: it needs brew's managers and the rustup init above. User-level
+    # installs, so never escalate even if become is turned on globally.
+    - name: Provision language toolchains (nvm, pyenv, go, cargo, pipx, npm, pip).
+      import_tasks: tasks/toolchains.yml
+      become: false
+      tags: ['toolchains']

@@ -351,6 +351,67 @@ pip_packages: []
 #   state: present # present/absent/latest, default: present
 #   version: "0.16.3" # default: N/A
 
+# ---------------------------------------------------------------------------
+# LANGUAGE TOOLCHAINS — tasks/toolchains.yml (tag: toolchains). Captured from
+# the current Mac 2026-09-10. The managers (nvm, pyenv, go, rustup, python)
+# come from homebrew_installed_packages; these lists say what each installs.
+# ---------------------------------------------------------------------------
+# nvm: `nvm install <entry>`. Majors resolve to the newest release of that
+# line. Trimmed from 16/18/20.x/24 to 20 LTS + 24 — add "16"/"18" back only
+# if a project still needs them.
+nvm_node_versions:
+  - "20"
+  - "24"
+nvm_default_node: "20"
+# `npm install -g` under the nvm default Node. (issue-duck is a local
+# `npm link`, so it is not listed; yarn globals were 2023-era and dropped.)
+nvm_npm_global_packages:
+  - "@playwright/mcp"
+# pyenv: `pyenv install <version>` (exact versions), then `pyenv global`.
+pyenv_python_versions:
+  - "3.10.13"
+pyenv_global_python: "3.10.13"
+# Go: `go install <module>@<version|latest>` → ~/go/bin/<name>. `name` is the
+# binary (used as the idempotency guard). Local project binaries (irep) are
+# intentionally not listed.
+go_packages:
+  - name: gopls
+    module: golang.org/x/tools/gopls
+  - name: golangci-lint
+    module: github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+  - name: staticcheck
+    module: honnef.co/go/tools/cmd/staticcheck
+  - name: goimports
+    module: golang.org/x/tools/cmd/goimports
+  - name: govulncheck
+    module: golang.org/x/vuln/cmd/govulncheck
+  - name: gosec
+    module: github.com/securego/gosec/v2/cmd/gosec
+  - name: protoc-gen-go
+    module: google.golang.org/protobuf/cmd/protoc-gen-go
+  - name: go-jsonschema
+    module: github.com/atombender/go-jsonschema
+  - name: amtool
+    module: github.com/prometheus/alertmanager/cmd/amtool
+# cargo: `cargo install <name>` → ~/.cargo/bin/<bin> (bin defaults to name).
+# Needs the rustup toolchain that main.yml initializes.
+cargo_packages:
+  - name: mdbook
+  - name: wasm-pack
+# pipx: `pipx install <name>` → ~/.local/bin/<bin> (bin defaults to name).
+pipx_packages:
+  - name: ansible-lint
+  - name: yamllint
+# Homebrew python3 libraries: `python3 -m pip install --break-system-packages`.
+brew_pip_packages:
+  - name: pypdf
+  - name: pillow
+  - name: Jinja2
+  - name: PyYAML
+# pnpm: set true to run `pnpm setup` (needed only for `pnpm add -g`; it edits
+# ~/.zshrc, which the dotfiles repo owns — so off by default).
+toolchains_pnpm_setup: false
+
 # Set to 'true' to configure Sublime Text.
 configure_sublime: false
 sublime_base_path: "~/Library/Application Support/Sublime Text"

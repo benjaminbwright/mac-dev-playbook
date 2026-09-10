@@ -1,0 +1,158 @@
+---
+# Language toolchains that live OUTSIDE Homebrew: Node (nvm), Python (pyenv),
+# Go tools, Rust crates, pipx apps, global npm packages and Homebrew-Python pip
+# packages. The package managers themselves come from Homebrew (nvm, pyenv, go,
+# rustup, python) — see homebrew_installed_packages. Everything here is
+# user-level (no become) and idempotent via `creates:` guards, so re-runs are
+# no-ops. Lists live in default.config.yml under "LANGUAGE TOOLCHAINS".
+# Run alone with:  ansible-playbook main.yml --tags toolchains
+
+# --- Node (nvm) -------------------------------------------------------------
+# nvm is a shell function, not a binary, so each task sources Homebrew's nvm.sh.
+# NVM_DIR must be set explicitly or nvm.sh resolves it to the Homebrew keg.
+- name: Ensure NVM_DIR exists.
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.nvm"
+    state: directory
+    mode: "0755"
+
+- name: Install Node versions via nvm.
+  ansible.builtin.shell:
+    cmd: ". /opt/homebrew/opt/nvm/nvm.sh && nvm install {{ item }}"
+    executable: /bin/bash
+    # `nvm install 20` lands in versions/node/v20.x.y — a glob so a major-only
+    # entry is skipped once ANY matching release is present.
+    creates: "{{ ansible_env.HOME }}/.nvm/versions/node/v{{ item }}*"
+  loop: "{{ nvm_node_versions }}"
+  environment:
+    NVM_DIR: "{{ ansible_env.HOME }}/.nvm"
+
+- name: Set the default nvm Node version.
+  ansible.builtin.shell:
+    cmd: |
+      . /opt/homebrew/opt/nvm/nvm.sh
+      if [ "$(cat "$NVM_DIR/alias/default" 2>/dev/null)" = "{{ nvm_default_node }}" ]; then
+        echo "default alias unchanged"
+      else
+        nvm alias default {{ nvm_default_node }}
+      fi
+    executable: /bin/bash
+  environment:
+    NVM_DIR: "{{ ansible_env.HOME }}/.nvm"
+  register: nvm_default_alias
+  changed_when: "'unchanged' not in nvm_default_alias.stdout"
+
+# Global npm packages go under the nvm DEFAULT Node (what the shell's `npm`
+# resolves to), not Homebrew's node, so they match the current machine.
+- name: Install global npm packages (nvm default Node).
+  ansible.builtin.shell:
+    cmd: ". /opt/homebrew/opt/nvm/nvm.sh && nvm use default >/dev/null && npm install -g {{ item }}"
+    executable: /bin/bash
+    creates: "{{ ansible_env.HOME }}/.nvm/versions/node/v{{ nvm_default_node }}*/lib/node_modules/{{ item }}"
+  loop: "{{ nvm_npm_global_packages }}"
+  environment:
+    NVM_DIR: "{{ ansible_env.HOME }}/.nvm"
+
+# --- Python (pyenv) ---------------------------------------------------------
+# pyenv (Homebrew) builds CPython from source; openssl/readline/sqlite from
+# homebrew_installed_packages are the build deps it needs.
+- name: Install Python versions via pyenv.
+  ansible.builtin.command:
+    cmd: "pyenv install --skip-existing {{ item }}"
+    creates: "{{ ansible_env.HOME }}/.pyenv/versions/{{ item }}"
+  loop: "{{ pyenv_python_versions }}"
+
+- name: Read the current global pyenv Python.
+  ansible.builtin.command:
+    cmd: pyenv global
+  register: pyenv_global_current
+  changed_when: false
+  check_mode: false
+
+- name: Set the global pyenv Python.
+  ansible.builtin.command:
+    cmd: "pyenv global {{ pyenv_global_python }}"
+  # Only runs when the probe above shows a different global, so it always changes.
+  changed_when: true
+  when: (pyenv_global_current.stdout | default('') | trim) != pyenv_global_python
+
+# --- Go tools (go install) --------------------------------------------------
+# Binaries land in $GOPATH/bin (~/go/bin by default; dotfiles put it on PATH).
+- name: Install Go tools (go install).
+  ansible.builtin.command:
+    cmd: "go install {{ item.module }}@{{ item.version | default('latest') }}"
+    creates: "{{ ansible_env.HOME }}/go/bin/{{ item.name }}"
+  loop: "{{ go_packages }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# --- Rust crates (cargo install) --------------------------------------------
+# rustup-init (main.yml) provides ~/.cargo/bin/cargo; it is ignore_errors, so
+# skip cleanly rather than fail if the Rust toolchain is absent.
+- name: Check for the rustup-managed cargo.
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+  register: cargo_bin
+
+- name: Warn if cargo is missing.
+  ansible.builtin.debug:
+    msg: >-
+      ~/.cargo/bin/cargo not found — skipping cargo crates. Check the
+      "Initialize Rust toolchain" task, then re-run with --tags toolchains.
+  when: not cargo_bin.stat.exists
+
+- name: Install Rust crates (cargo install).
+  ansible.builtin.command:
+    cmd: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item.name }}"
+    creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item.bin | default(item.name) }}"
+  loop: "{{ cargo_packages }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: cargo_bin.stat.exists
+
+# --- pipx apps ---------------------------------------------------------------
+# pipx isn't in homebrew_installed_packages, so install it here with the same
+# tolerant pattern main.yml uses (brew's exit code is unreliable; key on
+# 'Error:' and treat "already installed" as unchanged).
+- name: Ensure pipx is installed (Homebrew, tolerant).
+  ansible.builtin.command:
+    cmd: "/opt/homebrew/bin/brew install pipx"
+  register: pipx_brew
+  changed_when: >-
+    'already installed' not in (pipx_brew.stdout | default('')) and
+    'already installed' not in (pipx_brew.stderr | default(''))
+  failed_when: >-
+    'Error:' in (pipx_brew.stdout | default('')) or
+    'Error:' in (pipx_brew.stderr | default(''))
+
+- name: Install pipx apps.
+  ansible.builtin.command:
+    cmd: "pipx install {{ item.name }}"
+    creates: "{{ ansible_env.HOME }}/.local/bin/{{ item.bin | default(item.name) }}"
+  loop: "{{ pipx_packages }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# --- Homebrew Python pip packages -------------------------------------------
+# Libraries (not apps) wanted in Homebrew's global python3. PEP 668 blocks
+# plain installs there, hence --break-system-packages (same as main.yml's
+# PyMySQL task). One pip call for the whole list; pip itself is the
+# idempotency check ("Requirement already satisfied" → unchanged).
+- name: Install Homebrew Python pip packages (--break-system-packages).
+  ansible.builtin.command:
+    cmd: >-
+      /opt/homebrew/bin/python3 -m pip install --break-system-packages
+      {{ brew_pip_packages | map(attribute='name') | join(' ') }}
+  register: brew_pip
+  changed_when: "'Successfully installed' in (brew_pip.stdout | default(''))"
+  when: brew_pip_packages | length > 0
+
+# --- pnpm (opt-in) -----------------------------------------------------------
+# pnpm (Homebrew) works per-project as-is. `pnpm setup` is only needed for
+# `pnpm add -g`, and it APPENDS a PNPM_HOME export to ~/.zshrc — a file the
+# dotfiles repo owns — so it is off unless toolchains_pnpm_setup is true.
+- name: Run pnpm setup (opt-in).
+  ansible.builtin.command:
+    cmd: pnpm setup
+    creates: "{{ ansible_env.HOME }}/Library/pnpm/pnpm"
+  when: toolchains_pnpm_setup | default(false)
