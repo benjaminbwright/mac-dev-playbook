@@ -369,6 +369,15 @@ mysql_packages:
   - mysql
   - mysql-server
 
+# Local database dump/restore (scripts/db-dump.sh + scripts/db-restore.sh).
+# db_dump_dir: where `ansible-playbook main.yml --tags db-restore` looks for a
+#   dump made on the old Mac. db-dump.sh writes ~/Development/db-dumps/<date>/
+#   and keeps a relative 'latest' symlink next to it, so copying the whole
+#   db-dumps dir across makes this default just work.
+# db_docker_volumes: Docker named volumes to archive/restore. Empty = none.
+db_dump_dir: ~/Development/db-dumps/latest
+db_docker_volumes: []
+
 # python
 # Do NOT hardcode /opt/homebrew/bin/python3 here: on a fresh Mac that path does
 # not exist until the homebrew role runs, but fact-gathering happens first, so

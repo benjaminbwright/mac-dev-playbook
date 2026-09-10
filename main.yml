@@ -211,3 +211,8 @@
         creates: "{{ ansible_env.HOME }}/.cargo/bin/rustc"
       when: ansible_os_family == "Darwin"
       ignore_errors: true
+    # Restore local databases + Docker volumes from a scripts/db-dump.sh dump.
+    # Opt-in: the 'never' tag keeps it out of a default run; invoke with
+    # `ansible-playbook main.yml --tags db-restore`. See NEW-MAC.md.
+    - import_tasks: tasks/db-restore.yml
+      tags: ['db-restore', 'never']

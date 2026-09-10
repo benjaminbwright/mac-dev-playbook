@@ -1,0 +1,3 @@
+#!/bin/bash
+# Test stub: records argv plus how many bytes were piped on stdin.
+echo "mysql $* <stdin:$(wc -c < /dev/stdin | tr -d ' ')>" >> "$STUB_LOG"

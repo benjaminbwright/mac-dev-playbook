@@ -1,0 +1,27 @@
+#!/bin/bash
+# Test stub for docker: records argv. Set DOCKER_STUB_DOWN=1 to simulate a
+# stopped daemon. For `docker run ... -v <host>:/backup ... tar czf /backup/<f>`
+# it creates <host>/<f> so the caller sees a tarball appear.
+echo "docker $*" >> "$STUB_LOG"
+if [ "${DOCKER_STUB_DOWN:-}" = "1" ]; then
+  echo "Cannot connect to the Docker daemon" >&2
+  exit 1
+fi
+case "$1" in
+  run)
+    host=""; file=""
+    args=("$@")
+    for i in "${!args[@]}"; do
+      a="${args[$i]}"
+      if [ "$a" = "-v" ]; then
+        m="${args[$((i+1))]}"
+        [ "${m##*:}" = "/backup" ] && host="${m%%:*}"
+      fi
+      case "$a" in /backup/*.tar.gz) file="${a#/backup/}" ;; esac
+    done
+    if [ -n "$host" ] && [ -n "$file" ] && [[ "$*" == *"tar czf"* ]]; then
+      echo fake-tar > "$host/$file"
+    fi
+    ;;
+esac
+exit 0

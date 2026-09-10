@@ -1,0 +1,39 @@
+---
+# Restore local databases + Docker named volumes from a dump made on the old
+# Mac with scripts/db-dump.sh. Opt-in only: main.yml imports this behind
+# tags ['db-restore', 'never'], so it runs solely via
+#   ansible-playbook main.yml --tags db-restore
+# and is a no-op when db_dump_dir (default.config.yml) does not exist.
+
+- name: Check for a database dump directory.
+  ansible.builtin.stat:
+    path: "{{ db_dump_dir | expanduser }}"
+  register: db_dump_stat
+
+- name: Skip database restore (no dump directory).
+  ansible.builtin.debug:
+    msg: >-
+      No dump at {{ db_dump_dir }}. On the old Mac run scripts/db-dump.sh, copy
+      ~/Development/db-dumps to this machine, then re-run with --tags db-restore.
+  when: not db_dump_stat.stat.exists
+
+# Runs as the login user (not root) so mysql/psql/mongorestore/docker pick up
+# the user's Homebrew services and Docker socket. MYSQL_PWD matches the
+# root/root convenience account main.yml sets up.
+- name: Restore local databases and Docker volumes from the dump.
+  ansible.builtin.command:
+    cmd: >-
+      {{ playbook_dir }}/scripts/db-restore.sh
+      --dir {{ db_dump_dir | expanduser | quote }} --yes
+      {% if db_docker_volumes | length > 0 %}--volumes {{ db_docker_volumes | join(',') | quote }}{% endif %}
+  become: false
+  environment:
+    MYSQL_PWD: root
+  register: db_restore_result
+  changed_when: "'<-' in db_restore_result.stdout"
+  when: db_dump_stat.stat.exists
+
+- name: Show database restore output.
+  ansible.builtin.debug:
+    var: db_restore_result.stdout_lines
+  when: db_dump_stat.stat.exists

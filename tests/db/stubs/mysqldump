@@ -1,0 +1,10 @@
+#!/bin/bash
+# Test stub: records argv, emits fake SQL on stdout. Set MYSQLDUMP_STUB_FAIL=1
+# to simulate a server that is not running (partial output, then exit 2).
+echo "mysqldump $*" >> "$STUB_LOG"
+if [ "${MYSQLDUMP_STUB_FAIL:-}" = "1" ]; then
+  echo "-- partial"
+  echo "mysqldump: Got error: 2002: Can't connect to local MySQL server" >&2
+  exit 2
+fi
+echo "-- fake mysqldump output"
