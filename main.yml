@@ -279,3 +279,10 @@
       import_tasks: tasks/toolchains.yml
       become: false
       tags: ['toolchains']
+
+    # Nested dotfiles (.ssh/config, .warp/..., .aws/config, ...). The
+    # geerlingguy.dotfiles role above only links top-level files; this links
+    # dotfiles_nested_files from the same clone (see default.config.yml).
+    - import_tasks: tasks/dotfiles-nested.yml
+      when: configure_dotfiles
+      tags: ['dotfiles']

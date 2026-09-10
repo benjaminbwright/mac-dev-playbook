@@ -196,9 +196,75 @@ reinstalled or damaged — the packages were fine; only the status reporting was
 ## Dotfiles & shell config
 
 The playbook clones your private [dotfiles repo](https://github.com/benjaminbwright/dotfiles)
-to `~/Development/GitHub/dotfiles` and symlinks the tracked files into `~`
-(`.zshrc`, `.aliases`, `.gitconfig`, `.gitignore`, `.inputrc`, `.vimrc`, `.osx`,
-`.zshenv`). Run just that part with `--tags dotfiles`.
+to `~/Development/GitHub/dotfiles` and symlinks the tracked files into `~`.
+Run just that part with `--tags dotfiles`. Two lists in
+[default.config.yml](default.config.yml) say what gets linked:
+
+- `dotfiles_files` — top-level files, linked by the `geerlingguy.dotfiles` role:
+  `.zshrc`, `.aliases`, `.gitconfig`, `.gitignore`, `.inputrc`, `.vimrc`, `.osx`,
+  `.zshenv`, `.zprofile`, `.bashrc`, `.profile`, `.roku-remote.yaml`,
+  `.jest-audio-reporterrc`.
+- `dotfiles_nested_files` — paths with a directory component, linked by
+  [tasks/dotfiles-nested.yml](tasks/dotfiles-nested.yml) (the role only does
+  top-level files): `.ssh/config`, `.warp/keybindings.yaml`,
+  `.warp/themes/matrix.yaml`, `.config/git/ignore`, `.aws/config`,
+  `.cursor/mcp.json`, `.codex/config.toml`. A path that isn't in the clone yet
+  is skipped, so the step is safe before you've captured it.
+
+Both lists link the file at the same relative path (`~/.ssh/config` →
+`<clone>/.ssh/config`). An existing plain file in `~` is **replaced** by the
+link — e.g. the `brew shellenv` line step 4 appended to `~/.zprofile` goes away,
+which is fine because the tracked `.zshrc` already puts `/opt/homebrew/bin` on
+PATH. SSH **keys** are never in the repo: hand-carry `~/.ssh/id_*` from the old
+Mac (`.ssh/config` references `~/.ssh/id_m1macbook`) and `chmod 600` them.
+
+### Capturing dotfiles from the old Mac
+Before the migration, on the **old** Mac, copy the files in both lists into the
+clone and commit them (the playbook only ever goes clone → `~`, not back):
+
+```bash
+cd ~/ansible/mac-dev-playbook
+scripts/capture-dotfiles.sh                 # copies ~ -> ~/Development/GitHub/dotfiles
+git -C ~/Development/GitHub/dotfiles status # review what landed
+git -C ~/Development/GitHub/dotfiles add -A && git -C ~/Development/GitHub/dotfiles commit -m "Track shell/tool dotfiles" && git -C ~/Development/GitHub/dotfiles push
+ansible-playbook main.yml --ask-become-pass --tags dotfiles   # ~ now symlinks into the clone
+```
+
+`scripts/capture-dotfiles.sh --list` prints the list it uses (it reads the two
+variables above, so script and playbook can't drift). It is idempotent, skips
+files that aren't on this machine, and **refuses to copy any file whose contents
+match a credential pattern** (password/token/cookie/API key/private key…),
+printing a `WARN` instead — those belong in the secrets repo. Pass explicit
+paths to capture just some: `scripts/capture-dotfiles.sh .zprofile .ssh/config`.
+
+### `.netrc` and other `$HOME` secrets → the secrets repo
+`~/.netrc` (Heroku credentials), `~/.prismic`, `~/.squarespace-local-developer`,
+`~/.codex/auth.json` and `~/.aws/{cli,sso}` are **not** dotfiles: they hold
+tokens/cookies and must stay out of the dotfiles repo (the capture script skips
+them). Keep `.netrc` in the vault-encrypted
+[secrets repo](https://github.com/benjaminbwright/secrets) instead; its
+`make restore` writes every bundled file to `~/<dest>` with mode `0600`, which
+is exactly what `.netrc` needs. Its scanner only finds gitignored `.env*` files
+inside repos, so add `.netrc` explicitly, on the old Mac:
+
+```bash
+cd ~/Development/GitHub/secrets
+make edit        # ansible-vault edit: append under repo_secret_files:
+                 #   - dest: .netrc
+                 #     content: |
+                 #       <paste the lines of ~/.netrc, indented>
+git commit -am "Add ~/.netrc (Heroku) to the secrets bundle" && git push
+```
+
+> `make update` rebuilds the bundle from the `sources.txt` scan and would drop a
+> hand-added entry. To make it stick, teach `bin/build-bundle.py` to accept
+> **file** lines in `sources.txt` (e.g. `~/.netrc`) alongside folders — see the
+> PR for issue #8 for the three-line patch — then just list `~/.netrc` there.
+
+On the **new** Mac, `.netrc` comes back with the rest of the secrets (`make
+restore`, see "Repo secrets" below). Re-log into the other tools by hand
+(`heroku login` also regenerates `.netrc`; `aws sso login`; Codex/Prismic/
+Squarespace sign-in).
 
 **Secrets are not in the repo.** Machine-local / sensitive shell config lives in
 `~/.zshrc.local` (gitignored, sourced at the end of `.zshrc`). On a new Mac it

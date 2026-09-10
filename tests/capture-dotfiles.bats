@@ -1,0 +1,160 @@
+#!/usr/bin/env bats
+# Tests for scripts/capture-dotfiles.sh. Everything runs against a temporary
+# fake HOME and destination -- the real ~ and dotfiles clone are never touched.
+
+bats_require_minimum_version 1.5.0
+
+setup() {
+  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+  SCRIPT="$REPO_ROOT/scripts/capture-dotfiles.sh"
+  TMP="$(mktemp -d)"
+  export HOME="$TMP/home"
+  DEST="$TMP/dotfiles"
+  mkdir -p "$HOME" "$DEST"
+}
+
+teardown() {
+  rm -rf "$TMP"
+}
+
+@test "copies a top-level dotfile from HOME into the destination" {
+  printf 'export FOO=1\n' > "$HOME/.zprofile"
+
+  run "$SCRIPT" --dest "$DEST" .zprofile
+
+  [ "$status" -eq 0 ]
+  [ -f "$DEST/.zprofile" ]
+  [ "$(cat "$DEST/.zprofile")" = "export FOO=1" ]
+}
+
+@test "preserves nested paths, creating parent directories in the destination" {
+  mkdir -p "$HOME/.warp/themes"
+  printf 'name: matrix\n' > "$HOME/.warp/themes/matrix.yaml"
+
+  run "$SCRIPT" --dest "$DEST" .warp/themes/matrix.yaml
+
+  [ "$status" -eq 0 ]
+  [ -f "$DEST/.warp/themes/matrix.yaml" ]
+  [ "$(cat "$DEST/.warp/themes/matrix.yaml")" = "name: matrix" ]
+}
+
+@test "skips a file that looks like it contains a secret, with a warning, and still copies the rest" {
+  printf 'machine api.example.com login me password hunter2\n' > "$HOME/.netrc"
+  printf 'alias ll="ls -l"\n' > "$HOME/.aliases"
+
+  run --separate-stderr "$SCRIPT" --dest "$DEST" .netrc .aliases
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$DEST/.netrc" ]
+  [ -f "$DEST/.aliases" ]
+  [[ "$stderr" == *"WARN"* ]]
+  [[ "$stderr" == *".netrc"* ]]
+}
+
+@test "does not flag mere mentions of secret words, only credential-shaped lines" {
+  # The dotfiles repo's own .gitignore says this -- must still be captured.
+  printf '# Never commit machine-local secret overrides:\n.zshrc.local\n' > "$HOME/.gitignore"
+  printf '# token for pocket-server is read from ~/.zshrc.local\nalias t=true\n' > "$HOME/.aliases"
+  printf '{"cookies": "sess=abcdef0123456789"}\n' > "$HOME/.prismic"
+  printf '{"token_value": "sq0atp-abcdefgh"}\n' > "$HOME/.squarespace-local-developer"
+  printf 'export GITHUB_TOKEN="ghp_abcdefghijklmnopqrstuvwxyz0123456789"\n' > "$HOME/.envrc"
+
+  run --separate-stderr "$SCRIPT" --dest "$DEST" .gitignore .aliases .prismic .squarespace-local-developer .envrc
+
+  [ "$status" -eq 0 ]
+  [ -f "$DEST/.gitignore" ]
+  [ -f "$DEST/.aliases" ]
+  [ ! -e "$DEST/.prismic" ]
+  [ ! -e "$DEST/.squarespace-local-developer" ]
+  [ ! -e "$DEST/.envrc" ]
+  [[ "$stderr" == *".prismic"* ]]
+  [[ "$stderr" == *".squarespace-local-developer"* ]]
+  [[ "$stderr" == *".envrc"* ]]
+  [[ "$stderr" != *".gitignore"* ]]
+}
+
+@test "is idempotent: re-running, or running when HOME already symlinks into the destination, succeeds" {
+  printf 'set -o vi\n' > "$HOME/.inputrc"
+  mkdir -p "$HOME/.config/git"
+  printf '.DS_Store\n' > "$HOME/.config/git/ignore"
+
+  run "$SCRIPT" --dest "$DEST" .inputrc .config/git/ignore
+  [ "$status" -eq 0 ]
+
+  # Second run with nothing changed.
+  run "$SCRIPT" --dest "$DEST" .inputrc .config/git/ignore
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"unchanged"* ]]
+
+  # Simulate the playbook having linked ~ into the clone.
+  rm "$HOME/.inputrc"
+  ln -s "$DEST/.inputrc" "$HOME/.inputrc"
+  # A file that is ALREADY a link into the clone is not re-scanned for secrets
+  # (it is already in the repo), even if it now has a credential-shaped line.
+  printf '# password=example1234 (already tracked)\n' >> "$HOME/.inputrc"
+  run --separate-stderr "$SCRIPT" --dest "$DEST" .inputrc
+  [ "$status" -eq 0 ]
+  [ -L "$HOME/.inputrc" ]
+  [[ "$output" == *"linked"*".inputrc"* ]]
+  [[ "$stderr" != *"WARN"* ]]
+}
+
+@test "skips files that do not exist in HOME without failing" {
+  printf 'x\n' > "$HOME/.profile"
+
+  run "$SCRIPT" --dest "$DEST" .roku-remote.yaml .profile
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$DEST/.roku-remote.yaml" ]
+  [ -f "$DEST/.profile" ]
+  [[ "$output" == *"missing"*".roku-remote.yaml"* ]]
+}
+
+@test "--list reads dotfiles_files and dotfiles_nested_files from the given config (comments and other keys ignored)" {
+  cat > "$TMP/cfg.yml" <<'YAML'
+---
+configure_dotfiles: true
+dotfiles_files:
+  - .zshrc
+  # a comment inside the list
+  - .aliases
+homebrew_installed_packages:
+  - git
+dotfiles_nested_files:
+  - .ssh/config
+  - .warp/themes/matrix.yaml
+other_key: 1
+YAML
+
+  run "$SCRIPT" --config "$TMP/cfg.yml" --list
+
+  [ "$status" -eq 0 ]
+  [ "$output" = $'.zshrc\n.aliases\n.ssh/config\n.warp/themes/matrix.yaml' ]
+}
+
+@test "the default list (from default.config.yml) covers the files named in issue #8" {
+  run "$SCRIPT" --list
+
+  [ "$status" -eq 0 ]
+  for f in .zshrc .zprofile .bashrc .profile .roku-remote.yaml .jest-audio-reporterrc \
+           .ssh/config .warp/keybindings.yaml .warp/themes/matrix.yaml .config/git/ignore \
+           .aws/config .cursor/mcp.json .codex/config.toml; do
+    grep -qxF "$f" <<<"$output" || { echo "missing from list: $f"; return 1; }
+  done
+  # Secret-bearing / autogenerated candidates must NOT be captured by default.
+  for f in .netrc .prismic .squarespace-local-developer .yarnrc; do
+    ! grep -qxF "$f" <<<"$output" || { echo "must not be listed: $f"; return 1; }
+  done
+}
+
+@test "with no file arguments, captures the default list" {
+  printf 'a\n' > "$HOME/.zprofile"
+  mkdir -p "$HOME/.ssh"
+  printf 'Host example\n' > "$HOME/.ssh/config"
+
+  run "$SCRIPT" --dest "$DEST"
+
+  [ "$status" -eq 0 ]
+  [ -f "$DEST/.zprofile" ]
+  [ -f "$DEST/.ssh/config" ]
+}
