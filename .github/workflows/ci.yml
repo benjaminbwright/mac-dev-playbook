@@ -5,8 +5,7 @@ name: CI
   push:
     branches:
       - master
-  schedule:
-    - cron: "0 5 * * 4"
+  workflow_dispatch:
 
 jobs:
 
@@ -15,39 +14,63 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the codebase.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Install test dependencies.
+      - name: Install lint dependencies.
         run: pip3 install yamllint ansible ansible-lint
+
+      # ansible-lint has to resolve the roles/collections main.yml references
+      # (installed to ./roles per ansible.cfg; .yamllint/.ansible-lint ignore it).
+      - name: Install required roles and collections.
+        run: ansible-galaxy install -r requirements.yml
 
       - name: Lint code.
         run: |
           yamllint .
           ansible-lint
 
-      - name: Install bats.
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats rsync
-
-      - name: Test helper scripts.
-        run: bats tests/
-
-  integration:
-    name: Integration
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - macos-12
-          - macos-11
-
+  test:
+    name: Test (bats on macOS)
+    # The helper scripts and task files target macOS (plutil, osascript, brew
+    # paths), so the bats suite runs on a macOS runner, not Ubuntu.
+    runs-on: macos-latest
     steps:
       - name: Check out the codebase.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install test dependencies.
+        run: |
+          brew install bats-core
+          pip3 install yamllint ansible ansible-lint
+          ansible-galaxy install -r requirements.yml
+
+      - name: Syntax-check the playbook.
+        run: ansible-playbook main.yml --syntax-check
+
+      - name: Run the bats suite.
+        run: bats tests/
+
+  # Runs the WHOLE playbook on a fresh macOS runner. It sat queued forever on
+  # the retired macos-11/12 runners, and on this fork it also needs the private
+  # dotfiles repo over SSH, so it is manual-only (Actions tab -> Run workflow)
+  # until tests/config.yml turns off everything a runner can't do.
+  integration:
+    name: Integration
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    steps:
+      - name: Check out the codebase.
+        uses: actions/checkout@v4
 
       - name: Uninstall GitHub Actions' built-in Homebrew.
         run: tests/uninstall-homebrew.sh
@@ -57,10 +80,13 @@ jobs:
           sudo rm -rf /Applications/Firefox.app
           sudo rm -rf /Applications/Google\ Chrome.app
 
+      - name: Set up Python 3.
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Install test dependencies.
-        run: |
-          sudo pip3 install --upgrade pip
-          sudo pip3 install ansible
+        run: pip3 install ansible
 
       - name: Set up the test environment.
         run: |

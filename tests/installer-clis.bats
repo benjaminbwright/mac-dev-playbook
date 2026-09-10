@@ -18,9 +18,10 @@ setup() {
 
 # The tools Homebrew now provides are declared as regular config entries.
 @test "default.config.yml declares codex and cursor-cli casks and the turso formula" {
-  run ansible localhost -m debug -a "msg={{ homebrew_cask_apps + homebrew_installed_packages }}" -e @default.config.yml
+  # Force JSON results (ansible.cfg renders YAML) so items appear quoted.
+  ANSIBLE_CALLBACK_RESULT_FORMAT=json \
+    run ansible localhost -m debug -a "msg={{ homebrew_cask_apps + homebrew_installed_packages }}" -e @default.config.yml
   [ "$status" -eq 0 ]
-  # ad-hoc `ansible` prints the list as JSON, so items appear quoted.
   [[ "$output" == *'"codex"'* ]]
   [[ "$output" == *'"cursor-cli"'* ]]
   [[ "$output" == *'"turso"'* ]]

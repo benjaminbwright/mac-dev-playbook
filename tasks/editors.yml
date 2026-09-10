@@ -17,11 +17,13 @@
       ansible.builtin.file:
         path: "{{ ansible_env.HOME }}/Library/Application Support/Code/User"
         state: directory
+        mode: "0755"
 
     - name: Copy VS Code settings.
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/files/vscode/settings.json"
         dest: "{{ ansible_env.HOME }}/Library/Application Support/Code/User/settings.json"
+        mode: "0644"
 
     - name: Install VS Code extensions.
       ansible.builtin.command:
@@ -49,11 +51,13 @@
       ansible.builtin.file:
         path: "{{ ansible_env.HOME }}/Library/Application Support/Cursor/User"
         state: directory
+        mode: "0755"
 
     - name: Copy Cursor settings + keybindings.
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/files/cursor/{{ item }}"
         dest: "{{ ansible_env.HOME }}/Library/Application Support/Cursor/User/{{ item }}"
+        mode: "0644"
       loop:
         - settings.json
         - keybindings.json

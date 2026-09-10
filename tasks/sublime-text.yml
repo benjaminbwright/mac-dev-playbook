@@ -3,6 +3,7 @@
   file:
     path: "{{ item }}"
     state: directory
+    mode: "0755"
   loop:
     - "{{ sublime_base_path }}/{{ sublime_config_path }}"
     - "{{ sublime_base_path }}/Installed Packages"
@@ -11,16 +12,19 @@
   get_url:
     url: "https://packagecontrol.io/Package%20Control.sublime-package"
     dest: "{{ sublime_base_path }}/Installed Packages/Package Control.sublime-package"
+    mode: "0644"
 
 - name: Ensure Sublime Package Control Packages are configured.
   template:
     src: templates/Package_Control.sublime-settings.j2
     dest: "{{ sublime_base_path }}/{{ sublime_config_path }}/Package Control.sublime-settings"
+    mode: "0644"
 
 - name: Ensure Sublime text user Preferences and theme are set.
   copy:
     src: "files/sublime/{{ item }}"
     dest: "{{ sublime_base_path }}/{{ sublime_config_path }}/{{ item }}"
+    mode: "0644"
   loop:
     - "Cobalt (SL).tmTheme"
     - "Markdown.sublime-settings"

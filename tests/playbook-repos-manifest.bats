@@ -44,7 +44,9 @@ teardown() {
 }
 
 run_repos_check() {
-  run ansible-playbook "$REPO_ROOT/main.yml" --check --tags repos \
+  # --skip-tags secrets: that task clones a private GitHub repo over SSH, which
+  # a CI runner can't reach (and this test is about the manifest, not secrets).
+  run ansible-playbook "$REPO_ROOT/main.yml" --check --tags repos --skip-tags secrets \
     -e ansible_become=false \
     -e "dotfiles_repo_local_destination=$DOTFILES"
 }
