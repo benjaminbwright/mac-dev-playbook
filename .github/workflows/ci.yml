@@ -30,6 +30,12 @@ jobs:
           yamllint .
           ansible-lint
 
+      - name: Install bats.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats
+
+      - name: Test helper scripts.
+        run: bats tests/
+
   integration:
     name: Integration
     runs-on: ${{ matrix.os }}

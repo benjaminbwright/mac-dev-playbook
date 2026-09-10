@@ -238,6 +238,23 @@ rsync -aL --delete --exclude .DS_Store ~/.claude/skills/ "$DF/claude/skills/"
 git -C "$DF" add claude && git -C "$DF" commit -m "Update Claude config" && git -C "$DF" push
 ```
 
+## Re-capturing editor config
+
+VS Code and Cursor settings, keybindings, and extension lists are restored by the
+playbook from `files/vscode/` and `files/cursor/` (`--tags editors`). Whenever you
+tweak a setting or add/remove an extension on your live Mac, re-capture so the repo
+keeps matching the machine:
+
+```bash
+scripts/capture-editors.sh --check   # exit 1 and list drifted files; writes nothing
+scripts/capture-editors.sh           # copy live config into files/{vscode,cursor}/
+git add files && git commit -m "Re-capture editor config" && git push
+```
+
+The script uses the `code` / `cursor` shell commands (installed by the Homebrew
+casks, or via the Command Palette → "Shell Command: Install ... in PATH"); an
+editor whose command isn't found is skipped. Tests: `bats tests/`.
+
 ## Good to know
 
 - [main.yml](main.yml) starts MySQL/MongoDB services, sets a root MySQL password

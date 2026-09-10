@@ -17,4 +17,6 @@
   "git.openRepositoryInParentFolders": "never",
   "workbench.editor.enablePreview": false,
   "makefile.configureOnOpen": true,
+  "window.autoDetectColorScheme": false,
+  "editor.accessibilitySupport": "on",
 }
