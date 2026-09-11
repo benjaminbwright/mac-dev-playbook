@@ -46,8 +46,10 @@ teardown() {
 run_repos_check() {
   # --skip-tags secrets: that task clones a private GitHub repo over SSH, which
   # a CI runner can't reach (and this test is about the manifest, not secrets).
+  # configure_dotfiles=false: the test supplies the "clone" dir itself, so the
+  # real dotfiles repo (private, over SSH) must not be fetched.
   run ansible-playbook "$REPO_ROOT/main.yml" --check --tags repos --skip-tags secrets \
-    -e ansible_become=false \
+    -e '{"ansible_become": false, "configure_dotfiles": false}' \
     -e "dotfiles_repo_local_destination=$DOTFILES"
 }
 
@@ -74,4 +76,14 @@ EOF
   [ "$status" -eq 0 ]
   refute_match "item=$DEST"
   echo "$output" | grep -Eq 'failed=0'
+}
+
+
+@test "the dotfiles repo is cloned before the manifest is read, under --tags repos" {
+  run ansible-playbook "$REPO_ROOT/main.yml" --list-tasks --tags repos
+  [ "$status" -eq 0 ]
+  clone_line=$(echo "$output" | grep -n "Ensure the dotfiles repo is cloned" | head -1 | cut -d: -f1)
+  manifest_line=$(echo "$output" | grep -n "Include the repo manifest from the dotfiles clone" | head -1 | cut -d: -f1)
+  [ -n "$clone_line" ] && [ -n "$manifest_line" ]
+  [ "$clone_line" -lt "$manifest_line" ]
 }
